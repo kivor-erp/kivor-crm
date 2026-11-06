@@ -38,19 +38,46 @@ h2 { font-size: 1.05rem; margin: 18px 0 8px; color: var(--suave); text-transform
 .topo button.estado-sync.offline { background: var(--amarelo-sof); color: #3a2f00; }
 .tela-login { max-width: 420px; margin: 18vh auto 0; padding: 0 16px; text-align: center; }
 .tela-login .logo { width: 72px; height: 72px; margin-bottom: 12px; }
-main { max-width: 760px; margin: 0 auto; padding: 12px 12px calc(84px + env(safe-area-inset-bottom)); }
+main { max-width: 760px; margin: 0 auto; padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); }
 
+/* Layout: barra lateral de módulos + conteúdo */
+.layout { display: flex; min-height: 100vh; }
+.conteudo { flex: 1; min-width: 0; }
+.lateral {
+  position: sticky; top: 0; height: 100vh; width: 68px; flex: none; z-index: 20; background: #072e1c; color: #fff;
+  display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 8px) 6px 10px; gap: 4px;
+}
+.lateral .logo-k { display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px; justify-content: center; }
+.lateral .logo-k img { width: 34px; height: 34px; }
+.lateral .logo-k .nome { font-weight: 800; letter-spacing: .08em; }
+.lateral a {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px; border-radius: 10px;
+  color: rgba(255,255,255,.75); text-decoration: none; font-size: .68rem; text-align: center; border-left: 3px solid transparent;
+}
+.lateral a .ic { font-size: 1.35rem; line-height: 1; }
+.lateral a:hover { background: rgba(255,255,255,.08); }
+.lateral a.ativo { background: rgba(255,255,255,.14); color: #fff; font-weight: 600; border-left-color: var(--amarelo-sof); }
+.lateral .contador { position: absolute; top: 2px; right: 4px; margin: 0; }
+.lateral .espaco { flex: 1; }
+.lateral .logo-k .nome { display: none; }
+@media (min-width: 900px) {
+  .lateral { width: 190px; padding-left: 10px; padding-right: 10px; }
+  .lateral .logo-k { justify-content: flex-start; }
+  .lateral .logo-k .nome { display: inline; }
+  .lateral a { flex-direction: row; gap: 10px; font-size: .95rem; padding: 10px; text-align: left; }
+  .lateral .contador { position: static; margin-left: auto; }
+}
+
+/* Barra superior com os itens do módulo */
 .abas {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; display: flex; background: var(--cartao);
-  border-top: 1px solid var(--borda); padding-bottom: env(safe-area-inset-bottom);
+  position: sticky; top: 52px; z-index: 9; display: flex; gap: 4px; background: var(--cartao);
+  border-bottom: 1px solid var(--borda); padding: 0 8px; overflow-x: auto;
 }
 .abas a {
-  flex: 1; text-align: center; padding: 8px 0 10px; text-decoration: none; color: var(--suave); font-size: .78rem;
-  display: flex; flex-direction: column; align-items: center; gap: 2px; border-top: 3px solid transparent;
+  padding: 12px 14px 10px; text-decoration: none; color: var(--suave); font-size: .95rem; white-space: nowrap;
+  border-bottom: 3px solid transparent;
 }
-.abas a .ic { font-size: 1.35rem; line-height: 1; }
-.abas a.ativa { color: var(--verde-sof); font-weight: 600; border-top-color: var(--amarelo-sof); }
-
+.abas a.ativa { color: var(--verde-sof); font-weight: 600; border-bottom-color: var(--amarelo-sof); }
 
 /* Cartões e listas */
 .cartao { background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; margin-bottom: 10px; }
@@ -116,7 +143,7 @@ input, select, textarea {
 }
 textarea { min-height: 80px; resize: vertical; }
 input:focus, select:focus, textarea:focus, button:focus-visible, .chip:focus-visible { outline: 2px solid var(--amarelo-sof); outline-offset: 1px; }
-.busca { position: sticky; top: 52px; z-index: 5; background: var(--fundo); padding: 4px 0 8px; }
+.busca { position: sticky; top: 96px; z-index: 5; background: var(--fundo); padding: 4px 0 8px; }
 .busca input { font-size: 1.05rem; }
 details > summary { cursor: pointer; padding: 8px 0; color: var(--verde-sof); font-weight: 600; }
 .grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
