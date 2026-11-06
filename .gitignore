@@ -1,0 +1,13 @@
+node_modules/
+.claude/
+dist/
+.env
+.env.*
+*.lnk
+# dados nunca vão para o repositório
+*.xlsx
+*.xls
+*.csv
+crm*.json
+backup/
+dados/

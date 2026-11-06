@@ -1,0 +1,26 @@
+{
+  "name": "crm-sof",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^5.28.0",
+    "dexie": "^4.4.7",
+    "preact": "^11.2.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "fake-indexeddb": "^6.2.7",
+    "puppeteer-core": "^25.16.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  }
+}
