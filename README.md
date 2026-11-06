@@ -35,6 +35,10 @@ como excluído.
 powershell -ExecutionPolicy Bypass -File criar-atalho.ps1 -AreaDeTrabalho
 ```
 
+**PC de outra empresa (ex.: notebook da Prestige):** use `criar-atalho.ps1 -Separado`. Cria `KIVOR-CRM (navegador).lnk`,
+que abre o Edge com um perfil só do KIVOR-CRM (`%LOCALAPPDATA%\KIVOR-CRM\Edge`): não usa a conta do Windows e a conta da
+Voltrum fica só nesse perfil.
+
 Cria `KIVOR-CRM.lnk` na pasta do projeto (e na Área de Trabalho com `-AreaDeTrabalho`). Ele roda
 `msedge.exe --app=<endereço>`: janela própria, sem abas nem barra de endereço.
 
