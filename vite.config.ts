@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import preact from '@preact/preset-vite';
 
 export default defineConfig({
-  // base relativa: funciona em localhost, GitHub Pages (/crm-sof/) e Azure
+  // base relativa: funciona em localhost, GitHub Pages (/kivor-crm/) e Azure
   base: './',
   plugins: [preact()],
   define: { __BUILD__: JSON.stringify(Date.now().toString(36)) },

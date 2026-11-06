@@ -14,7 +14,7 @@ class CrmDb extends Dexie {
   meta!: Table<Meta, string>;
 
   constructor() {
-    super('crm-sof');
+    super('crm-sof'); // nome antigo mantido: trocar apagaria os dados e a fila deste aparelho
     this.version(1).stores({
       empresas: 'id, cnpj, sujo',
       contatos: 'id, empresaId, sujo',

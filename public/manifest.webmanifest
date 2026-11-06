@@ -1,7 +1,7 @@
 {
-  "name": "CRM SOF",
-  "short_name": "CRM SOF",
-  "description": "Prospecção da SOF TECNOELETRO",
+  "name": "KIVOR-CRM",
+  "short_name": "KIVOR-CRM",
+  "description": "KIVOR-CRM: prospecção da SOF TECNOELETRO",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

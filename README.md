@@ -1,6 +1,6 @@
-# CRM SOF
+# KIVOR-CRM
 
-CRM pessoal de prospecção da SOF TECNOELETRO (Serra/ES). Registra quais empresas foram contatadas, por qual canal,
+Módulo de CRM da família **Kivor** (KIVOR-ERP é o sistema central). CRM de prospecção da SOF TECNOELETRO (Serra/ES). Registra quais empresas foram contatadas, por qual canal,
 quando, e o que se conseguiu. Os dados ficam no **OneDrive da conta Voltrum**, então qualquer computador ou celular
 continua de onde parou, basta entrar com a conta Microsoft da Voltrum.
 
@@ -14,7 +14,7 @@ continua de onde parou, basta entrar com a conta Microsoft da Voltrum.
 
 ## 1. Usar no dia a dia
 
-**No PC:** abra o atalho **CRM SOF** (na pasta do projeto ou na Área de Trabalho). Ele abre o app numa janela própria,
+**No PC:** abra o atalho **KIVOR-CRM** (na pasta do projeto ou na Área de Trabalho). Ele abre o app numa janela própria,
 como um programa instalado. Alternativa: no Edge, abra o endereço do app → menu **⋯ › Aplicativos › Instalar este site
 como aplicativo**; isso cria o atalho no Menu Iniciar e na Área de Trabalho.
 
@@ -32,10 +32,10 @@ como excluído.
 ### Atalho na pasta
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File criar-atalho.ps1 -Url https://USUARIO.github.io/crm-sof/ -AreaDeTrabalho
+powershell -ExecutionPolicy Bypass -File criar-atalho.ps1 -AreaDeTrabalho
 ```
 
-Cria `CRM SOF.lnk` na pasta do projeto (e na Área de Trabalho com `-AreaDeTrabalho`). Ele roda
+Cria `KIVOR-CRM.lnk` na pasta do projeto (e na Área de Trabalho com `-AreaDeTrabalho`). Ele roda
 `msedge.exe --app=<endereço>`: janela própria, sem abas nem barra de endereço.
 
 ---
@@ -56,12 +56,12 @@ npm run build    # gera dist/
 
 ## 3. Configurar o Microsoft Entra (Azure)
 
-Já feito para a Voltrum (app **CRM SOF**). Os IDs ficam em `src/config.ts` (não são segredos). Para refazer:
+Já feito para a Voltrum (app **CRM SOF** no Entra; pode ser renomeado para KIVOR-CRM sem efeito no ID). Os IDs ficam em `src/config.ts` (não são segredos). Para refazer:
 
 1. https://entra.microsoft.com → **Entra ID** (ou **Identidade › Aplicativos**) → **Registros de aplicativo** → **+ Novo registro**.
-2. Nome `CRM SOF`; **Contas somente neste diretório organizacional (Locatário único)**.
+2. Nome `KIVOR-CRM`; **Contas somente neste diretório organizacional (Locatário único)**.
 3. URI de redirecionamento: plataforma **Aplicativo de página única (SPA)** → `http://localhost:5173/` → **Registrar**.
-4. **Autenticação › Adicionar URI**: o endereço publicado, com a barra no final (ex.: `https://USUARIO.github.io/crm-sof/`).
+4. **Autenticação › Adicionar URI**: o endereço publicado, com a barra no final (`https://kivor-erp.github.io/kivor-crm/`).
 5. **Permissões de API › Adicionar uma permissão › Microsoft Graph › Permissões delegadas**: `User.Read` e `Files.ReadWrite`.
    Se pedir, **Conceder consentimento do administrador**.
 6. Copie **ID do aplicativo (cliente)** e **ID do diretório (locatário)** para `src/config.ts`. Não crie segredo.
@@ -70,14 +70,15 @@ Já feito para a Voltrum (app **CRM SOF**). Os IDs ficam em `src/config.ts` (nã
 
 ## 4. Publicar (GitHub Pages)
 
-1. Em https://github.com/new crie o repositório `crm-sof` (público; o código não tem nenhum dado).
+1. Organização **`kivor-erp`** no GitHub (https://github.com/organizations/plan, plano Free) e, dentro dela, o repositório
+   **`kivor-crm`** (público; o código não tem nenhum dado). Outros módulos seguem o padrão `kivor-<módulo>`.
 2. No repositório: **Settings › Pages › Build and deployment › Source: GitHub Actions**.
 3. Envie o código:
    ```bash
-   git remote add origin https://github.com/USUARIO/crm-sof.git
+   git remote add origin https://github.com/kivor-erp/kivor-crm.git
    git push -u origin main
    ```
-4. A aba **Actions** roda testes + build e publica em `https://USUARIO.github.io/crm-sof/`.
+4. A aba **Actions** roda testes + build e publica em `https://kivor-erp.github.io/kivor-crm/`.
 5. Adicione esse endereço no Entra (passo 3.4).
 
 Cada `git push` na `main` publica de novo. O app já aberto pega a versão nova ao recarregar.
@@ -99,7 +100,7 @@ Cada `git push` na `main` publica de novo. O app já aberto pega a versão nova 
 O app usa o OneDrive **de quem entra** (`/me/drive`). Hoje:
 
 - **Cada pessoa com o próprio CRM:** já funciona. Qualquer conta da Voltrum pode entrar e terá seu próprio
-  `SOF_CRM/crm.json`. Para limitar quem pode entrar: Entra › **Aplicativos empresariais › CRM SOF › Propriedades ›
+  `SOF_CRM/crm.json`. Para limitar quem pode entrar: Entra › **Aplicativos empresariais › CRM SOF (ou KIVOR-CRM) › Propriedades ›
   Atribuição obrigatória = Sim**, e em **Usuários e grupos** adicione as pessoas.
 - **Equipe com os mesmos dados:** exige uma pequena mudança. Colocar `SOF_CRM` numa biblioteca do SharePoint/Teams
   compartilhada, trocar em `src/onedrive.ts` o caminho `me/drive/root:` pelo da biblioteca (`drives/{id}/root:`) e pedir

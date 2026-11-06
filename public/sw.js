@@ -1,7 +1,7 @@
 // Service worker: deixa o app abrir sem internet. Só arquivos do app (HTML/JS/CSS/ícones);
 // os dados ficam no IndexedDB e no OneDrive, nunca aqui. Chamadas ao Graph/login não passam por cache.
 const VERSAO = new URL(self.location.href).searchParams.get('v') || 'dev';
-const CACHE = `crm-sof-${VERSAO}`;
+const CACHE = `kivor-crm-${VERSAO}`;
 
 self.addEventListener('install', (ev) => {
   ev.waitUntil((async () => {

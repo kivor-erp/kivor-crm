@@ -48,7 +48,7 @@ function Telas() {
   const aba = ABAS.find((a) => a.rota === tela) ?? ABAS[0];
   return (
     <>
-      <Topo titulo={aba.rota === 'hoje' ? 'CRM SOF · Hoje' : aba.rotulo} />
+      <Topo titulo={aba.rota === 'hoje' ? 'KIVOR-CRM · Hoje' : aba.rotulo} />
       <Abas atual={aba.rota} />
       <main>
         {aba.rota === 'hoje' && <Hoje />}
@@ -64,7 +64,8 @@ function Login({ erro }: { erro: string }) {
   return (
     <div class="tela-login">
       <img class="logo" src="./icone.svg" alt="" />
-      <h1>CRM SOF</h1>
+      <h1>KIVOR-CRM</h1>
+      <p style="margin:2px 0 0;color:var(--suave)">SOF TECNOELETRO</p>
       <p class="peq">Entre com a sua conta Microsoft da Voltrum. Os dados ficam no OneDrive, na pasta SOF_CRM.</p>
       {erro && <div class="erro">{erro}</div>}
       <button class="primario grande" onClick={() => void entrar()}>Entrar com a conta Microsoft</button>
@@ -77,7 +78,7 @@ function Conteudo() {
   const d = useDados();
   const s = useSync();
   if (d.pronto && !d.empresas.length && (s.tipo === 'inicio' || s.tipo === 'sincronizando')) {
-    return <><Topo titulo="CRM SOF" /><main><div class="cartao vazio">Baixando seus dados do OneDrive…</div></main></>;
+    return <><Topo titulo="KIVOR-CRM" /><main><div class="cartao vazio">Baixando seus dados do OneDrive…</div></main></>;
   }
   return <Telas />;
 }
