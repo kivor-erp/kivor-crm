@@ -9,7 +9,12 @@ import { Empresas } from './telas/Empresas';
 import { Ficha } from './telas/Ficha';
 import { Hoje } from './telas/Hoje';
 import { Painel } from './telas/Painel';
+import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
+import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { Registrar } from './telas/Registrar';
+
+// Só no `npm run dev` (nunca no site publicado): ?semlogin abre sem Microsoft e sem sincronizar, para testes automáticos de tela.
+const SEM_LOGIN = import.meta.env.DEV && new URLSearchParams(location.search).has('semlogin');
 
 // Módulos da família Kivor. Itens vazios = módulo ainda não construído.
 const MODULOS = [
@@ -18,12 +23,17 @@ const MODULOS = [
     { rota: 'empresas', rotulo: 'Empresas' },
     { rota: 'painel', rotulo: 'Painel' },
   ] },
-  { id: 'orcamentos', nome: 'Orçamentos', ic: '🧾', itens: [] },
-  { id: 'wms', nome: 'WMS', ic: '📦', itens: [] },
+  { id: 'orcamentos', nome: 'Orçamentos', ic: '🧾', itens: [
+    { rota: 'orcamentos', rotulo: 'Orçamentos' },
+  ] },
+  { id: 'wms', nome: 'WMS', ic: '📦', itens: [
+    { rota: 'estoque', rotulo: 'Estoque' },
+    { rota: 'movimentacoes', rotulo: 'Movimentações' },
+  ] },
 ];
 const AJUSTES = { id: 'config', nome: 'Ajustes', ic: '⚙️' };
 // telas de detalhe pertencem ao CRM
-const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config' };
+const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms' };
 
 function moduloDe(tela: string): string {
   return MODULOS.find((m) => m.id === tela || m.itens.some((i) => i.rota === tela))?.id ?? MODULO_DA_TELA[tela] ?? 'crm';
@@ -51,16 +61,12 @@ function Lateral({ atual }: { atual: string }) {
 }
 
 function BarraItens({ modulo, atual }: { modulo: (typeof MODULOS)[number]; atual: string }) {
-  if (!modulo.itens.length) return null;
+  if (modulo.itens.length < 2) return null; // com um item só, a barra não ajuda
   return (
     <nav class="abas">
       {modulo.itens.map((i) => <a key={i.rota} href={`#/${i.rota}`} class={atual === i.rota ? 'ativa' : ''}>{i.rotulo}</a>)}
     </nav>
   );
-}
-
-function EmBreve({ nome }: { nome: string }) {
-  return <div class="cartao vazio"><p style="font-size:1.1rem"><b>{nome}</b></p><p>Módulo em construção.</p></div>;
 }
 
 function Tela({ tela, arg }: { tela: string; arg?: string }) {
@@ -70,19 +76,24 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
   if (tela === 'registrar' && arg) return <Registrar empresaId={arg} contatoId={rota.q.get('contato')} />;
   if (tela === 'config' && arg === 'importar') return <Importar />;
   if (tela === 'config' && arg === 'restaurar') return <Restaurar />;
+  if (tela === 'orcamento' && arg) return <OrcamentoTela id={arg} rota={rota} />;
+  if (tela === 'material' && arg) return <MaterialTela id={arg} />;
+  if (tela === 'estoque' && arg === 'importar') return <ImportarMateriais />;
 
   if (tela === 'config') return <><Topo titulo="Ajustes" /><main><Config /></main></>;
   const modulo = MODULOS.find((m) => m.id === moduloDe(tela))!;
   const item = modulo.itens.find((i) => i.rota === tela) ?? modulo.itens[0];
   return (
     <>
-      <Topo titulo={item ? `${modulo.nome} · ${item.rotulo}` : modulo.nome} />
+      <Topo titulo={item && item.rotulo !== modulo.nome ? `${modulo.nome} · ${item.rotulo}` : modulo.nome} />
       <BarraItens modulo={modulo} atual={item?.rota ?? ''} />
       <main>
-        {!item && <EmBreve nome={modulo.nome} />}
         {item?.rota === 'hoje' && <Hoje />}
         {item?.rota === 'empresas' && <Empresas rota={rota} />}
         {item?.rota === 'painel' && <Painel />}
+        {item?.rota === 'orcamentos' && <Orcamentos rota={rota} />}
+        {item?.rota === 'estoque' && <Estoque />}
+        {item?.rota === 'movimentacoes' && <Movimentacoes />}
       </main>
     </>
   );
@@ -91,6 +102,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
 function Telas() {
   const rota = useRota();
   const [tela = 'hoje', arg] = rota.partes;
+  if (tela === 'imprimir' && arg) return <ImprimirOrcamento id={arg} />; // página limpa, sem menus
   return (
     <div class="layout">
       <Lateral atual={moduloDe(tela)} />
@@ -116,7 +128,7 @@ function Login({ erro }: { erro: string }) {
 function Conteudo() {
   const d = useDados();
   const s = useSync();
-  if (d.pronto && !d.empresas.length && (s.tipo === 'inicio' || s.tipo === 'sincronizando')) {
+  if (!SEM_LOGIN && d.pronto && !d.empresas.length && (s.tipo === 'inicio' || s.tipo === 'sincronizando')) {
     return <><Topo titulo="KIVOR-CRM" /><main><div class="cartao vazio">Baixando seus dados do OneDrive…</div></main></>;
   }
   return <Telas />;
@@ -125,6 +137,7 @@ function Conteudo() {
 export function App() {
   const [auth, setAuth] = useState<{ ok: boolean; erro: string } | null>(null);
   useEffect(() => {
+    if (SEM_LOGIN) { setAuth({ ok: true, erro: '' }); return; }
     iniciarAuth()
       .then((c) => { setAuth({ ok: !!c, erro: '' }); if (c) iniciarSync(); })
       .catch((e) => setAuth({ ok: false, erro: `Falha no login: ${(e as Error).message}` }));

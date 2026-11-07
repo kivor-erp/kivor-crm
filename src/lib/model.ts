@@ -136,3 +136,67 @@ export interface Configuracoes {
   limiteAmarelo: number; // até N dias = amarelo; acima = vermelho
 }
 export const CONFIG_PADRAO: Configuracoes = { limiteVerde: 7, limiteAmarelo: 14 };
+
+// ---------- Orçamentos ----------
+
+export const STATUS_ORCAMENTO = ['Rascunho', 'Enviado', 'Aprovado', 'Recusado'] as const;
+export type StatusOrcamento = (typeof STATUS_ORCAMENTO)[number];
+
+export interface ItemOrcamento {
+  descricao: string;
+  unidade: string; // un, m, vb, mês, h…
+  quantidade: number;
+  valorUnitario: number;
+}
+
+/** Bloco de texto da proposta. Linhas que começam com "- " viram tópicos; "## " vira subtítulo. */
+export interface Secao { titulo: string; texto: string }
+
+export interface Orcamento extends Registro {
+  numero: string; // PC-2026-CL057
+  revisao: number;
+  data: string; // AAAA-MM-DD
+  empresaId: string | null; // empresa do CRM (opcional)
+  cliente: string; // nome que aparece na proposta
+  local: string; // "CD BELMICRO – SERRA/ES"
+  aosCuidados: string; // AT.
+  email: string;
+  titulo: string; // "Fornecimento de mão de obra"
+  subtitulo: string; // "Manutenção elétrica preditiva e corretiva"
+  referencia: string; // Ref.
+  secoes: Secao[];
+  itens: ItemOrcamento[];
+  pagamento: string;
+  impostos: string;
+  validadeDias: number;
+  status: StatusOrcamento;
+  enviadoEm: string | null;
+  decididoEm: string | null;
+  motivoRecusa: string;
+}
+
+// ---------- WMS (estoque de materiais) ----------
+
+export interface Material extends Registro {
+  descricao: string;
+  fabricante: string;
+  modelo: string; // código/part number
+  unidade: string;
+  local: string; // endereço no estoque: prateleira, caixa…
+  estoqueMinimo: number | null;
+  precoVenda: number | null;
+  observacoes: string;
+}
+
+export const TIPOS_MOVIMENTO = ['Entrada', 'Saída', 'Ajuste'] as const;
+export type TipoMovimento = (typeof TIPOS_MOVIMENTO)[number];
+
+/** Movimentações são o histórico; o saldo é sempre a soma delas (nunca sobrescrito). */
+export interface Movimento extends Registro {
+  materialId: string;
+  data: string; // ISO
+  tipo: TipoMovimento;
+  quantidade: number; // com sinal: entrada +, saída −, ajuste ±
+  destino: string; // cliente/obra/fornecedor
+  observacao: string;
+}

@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Topo } from '../componentes';
 import { conta, entrar, LoginNecessario, sair, token } from '../auth';
-import { aplicarImportacao, aplicarRestauracao, db, lerTudo, limparLocal, salvarConfig } from '../db';
+import { TABELAS, aplicarImportacao, aplicarRestauracao, db, lerTudo, limparLocal, salvarConfig, type NomeTabela } from '../db';
+
+const ROTULO_TABELA: Record<NomeTabela, string> = {
+  empresas: 'Empresas', contatos: 'Contatos', orcamentos: 'Orçamentos', materiais: 'Materiais', movimentos: 'Movimentações',
+};
 import { fmtData } from '../lib/datas';
 import { nomeEmpresa } from '../lib/model';
 import { planejarRestauracao, type PlanoRestauracao } from '../lib/restaurar';
@@ -14,7 +18,7 @@ import { sincronizar, textoEstado, useSync } from '../sync';
 async function exportar(tipo: 'excel' | 'json') {
   const { exportarExcel, exportarJson } = await import('../lib/exportar'); // SheetJS só carrega aqui
   const t = await lerTudo();
-  (tipo === 'excel' ? exportarExcel : exportarJson)(t.empresas, t.contatos);
+  (tipo === 'excel' ? exportarExcel : exportarJson)(t);
 }
 
 export function Config() {
@@ -224,16 +228,16 @@ export function Restaurar() {
     try {
       setOcupado('Guardando uma cópia do estado atual…');
       const atual = await lerTudo();
-      const copia = await copiaAntesDeRestaurar(await token(), { versao: 1, salvoEm: new Date().toISOString(), ...atual });
+      const copia = await copiaAntesDeRestaurar(await token(), { versao: 2, salvoEm: new Date().toISOString(), ...atual });
       setOcupado('Restaurando…');
-      await aplicarRestauracao(plano.empresas, plano.contatos);
+      await aplicarRestauracao(plano.dados);
       await sincronizar();
       setFeito(`Backup de ${fmtData(escolhido.dia)} restaurado. O estado anterior foi guardado em SOF_CRM › backup › ${copia}.`);
       setPlano(null);
     } catch (e) { falhou(e); } finally { setOcupado(''); }
   }
 
-  const Linha = ({ rot, dif }: { rot: string; dif: PlanoRestauracao['empresasDif'] }) => (
+  const Linha = ({ rot, dif }: { rot: string; dif: PlanoRestauracao['dif']['empresas'] }) => (
     <tr><td>{rot}</td><td>{dif.ativosAgora}</td><td>{dif.ativosBackup}</td><td>{dif.somem}</td><td>{dif.voltam}</td><td>{dif.mudam}</td></tr>
   );
 
@@ -264,8 +268,7 @@ export function Restaurar() {
               <table class="tabela">
                 <thead><tr><th></th><th>Hoje</th><th>No backup</th><th>Somem</th><th>Voltam</th><th>Mudam</th></tr></thead>
                 <tbody>
-                  <Linha rot="Empresas" dif={plano.empresasDif} />
-                  <Linha rot="Contatos" dif={plano.contatosDif} />
+                  {TABELAS.map((n) => <Linha key={n} rot={ROTULO_TABELA[n]} dif={plano.dif[n]} />)}
                 </tbody>
               </table>
             </div>

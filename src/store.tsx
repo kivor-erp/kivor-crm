@@ -2,7 +2,8 @@ import { liveQuery } from 'dexie';
 import { createContext, type ComponentChildren } from 'preact';
 import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { db, lerConfig } from './db';
-import { CONFIG_PADRAO, type Configuracoes, type Contato, type Empresa } from './lib/model';
+import { saldos } from './lib/estoque';
+import { CONFIG_PADRAO, type Configuracoes, type Contato, type Empresa, type Material, type Movimento, type Orcamento } from './lib/model';
 import { resumir, type ResumoEmpresa } from './lib/regras';
 
 export interface Dados {
@@ -12,9 +13,16 @@ export interface Dados {
   resumos: Map<string, ResumoEmpresa>;
   config: Configuracoes;
   porId: Map<string, Empresa>;
+  orcamentos: Orcamento[];
+  materiais: Material[];
+  movimentos: Movimento[];
+  saldo: Map<string, number>;
 }
 
-const vazio: Dados = { pronto: false, empresas: [], contatos: [], resumos: new Map(), config: CONFIG_PADRAO, porId: new Map() };
+const vazio: Dados = {
+  pronto: false, empresas: [], contatos: [], resumos: new Map(), config: CONFIG_PADRAO, porId: new Map(),
+  orcamentos: [], materiais: [], movimentos: [], saldo: new Map(),
+};
 const Ctx = createContext<Dados>(vazio);
 
 /** "Agora" que avança sozinho a cada minuto (para "há X dias" e a tela Hoje virarem à meia-noite). */
@@ -28,7 +36,7 @@ export function useAgora(): Date {
 }
 
 export function DadosProvider({ children }: { children: ComponentChildren }) {
-  const [bruto, setBruto] = useState<{ empresas: Empresa[]; contatos: Contato[]; config: Configuracoes } | null>(null);
+  const [bruto, setBruto] = useState<Omit<Dados, 'pronto' | 'resumos' | 'porId' | 'saldo'> | null>(null);
   const agora = useAgora();
   const dia = agora.toDateString();
 
@@ -36,10 +44,17 @@ export function DadosProvider({ children }: { children: ComponentChildren }) {
     const sub = liveQuery(async () => {
       const empresas = await db.empresas.toArray();
       const contatos = await db.contatos.toArray();
+      const orcamentos = await db.orcamentos.toArray();
+      const materiais = await db.materiais.toArray();
+      const movimentos = await db.movimentos.toArray();
       const config = await lerConfig();
+      const ativo = (r: { excluidoEm: string | null }) => !r.excluidoEm;
       return {
-        empresas: empresas.filter((e) => !e.excluidoEm),
-        contatos: contatos.filter((c) => !c.excluidoEm),
+        empresas: empresas.filter(ativo),
+        contatos: contatos.filter(ativo),
+        orcamentos: orcamentos.filter(ativo),
+        materiais: materiais.filter(ativo),
+        movimentos: movimentos.filter(ativo),
         config,
       };
     }).subscribe({ next: setBruto, error: (e) => console.error(e) });
@@ -54,6 +69,7 @@ export function DadosProvider({ children }: { children: ComponentChildren }) {
       ...bruto,
       resumos: resumir(bruto.contatos.filter((c) => ids.has(c.empresaId))),
       porId: new Map(bruto.empresas.map((e) => [e.id, e])),
+      saldo: saldos(bruto.movimentos),
     };
     // recalcula também na virada do dia
   }, [bruto, dia]);

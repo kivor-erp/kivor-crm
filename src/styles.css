@@ -143,7 +143,7 @@ input, select, textarea {
 }
 textarea { min-height: 80px; resize: vertical; }
 input:focus, select:focus, textarea:focus, button:focus-visible, .chip:focus-visible { outline: 2px solid var(--amarelo-sof); outline-offset: 1px; }
-.busca { position: sticky; top: 96px; z-index: 5; background: var(--fundo); padding: 4px 0 8px; }
+.busca { position: sticky; top: 52px; z-index: 5; background: var(--fundo); padding: 4px 0 8px; }
 .busca input { font-size: 1.05rem; }
 details > summary { cursor: pointer; padding: 8px 0; color: var(--verde-sof); font-weight: 600; }
 .grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -181,3 +181,72 @@ details > summary { cursor: pointer; padding: 8px 0; color: var(--verde-sof); fo
 .barra .trilho span { display: block; height: 100%; background: var(--verde-sof); border-right: 3px solid var(--amarelo-sof); }
 .barra .qtd { text-align: right; font-weight: 600; }
 .primario.perigo-fundo { background: var(--perigo); border-color: var(--perigo); }
+
+/* Orçamentos */
+fieldset.sem-borda { border: 0; padding: 0; margin: 0; min-width: 0; }
+.grade4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (min-width: 600px) { .grade4 { grid-template-columns: 90px 110px 1fr 1fr; } }
+.item-orc { border-bottom: 1px dashed var(--borda); padding-bottom: 10px; margin-bottom: 10px; }
+.total-item { padding: 10px 0; font-weight: 600; }
+.total-orc { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--verde-sof); margin-top: 12px; padding-top: 8px; font-size: 1.1rem; }
+.total-orc b { color: var(--verde-sof); font-size: 1.3rem; }
+.selo.status-Rascunho { background: #eceeed; color: var(--suave); }
+.selo.status-Enviado { background: #fff3c4; color: #6b5300; }
+.selo.status-Aprovado { background: var(--ok); color: #fff; }
+.selo.status-Recusado { background: #fbe0de; color: var(--perigo); }
+.linha-orc { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--borda); text-decoration: none; color: inherit; font-size: .9rem; }
+.linha-orc span:first-child { flex: 1; }
+
+/* Estoque */
+.saldo { font-size: 1.5rem; font-weight: 700; color: var(--verde-sof); text-align: right; flex: 0; white-space: nowrap; }
+.saldo small { font-size: .75rem; font-weight: 400; color: var(--suave); margin-left: 3px; }
+.saldo.baixo { color: var(--perigo); }
+.grande-saldo { font-size: 2.2rem; text-align: left; }
+.timeline .res.pos { color: var(--ok); }
+.timeline .res.neg { color: var(--perigo); }
+
+/* Proposta para impressão (visual das propostas da SOF) */
+.impressao { background: #fff; min-height: 100vh; color: #222; }
+.barra-impressao { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; background: var(--fundo); border-bottom: 1px solid var(--borda); }
+.doc { width: 100%; max-width: 210mm; margin: 0 auto; border-collapse: collapse; font-size: 10.5pt; line-height: 1.45; }
+.doc > thead td, .doc > tfoot td { padding: 0; }
+.doc-topo { background: #0B4429; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 14px 18mm 12px; border-bottom: 5px solid #F9CD0C; }
+.doc-marca { font-family: Bahnschrift, 'Arial Narrow', Impact, sans-serif; font-weight: 700; font-size: 20pt; letter-spacing: .02em; font-stretch: condensed; }
+.doc-cnpj { color: #F9CD0C; font-weight: 700; font-size: 9pt; }
+.doc-rodape { background: #0B4429; color: #fff; border-top: 5px solid #F9CD0C; padding: 8px 18mm; font-size: 8.5pt; }
+.doc-rodape em { color: #F9CD0C; font-style: normal; }
+.doc-corpo { padding: 0 18mm; vertical-align: top; }
+.doc > tbody > tr:first-child > .doc-corpo { padding-top: 10mm; }
+.doc > tbody > tr:last-child > .doc-corpo { padding-bottom: 8mm; }
+.doc-data { text-align: right; }
+.doc-titulo, .doc h2 { font-family: Bahnschrift, 'Arial Narrow', Impact, sans-serif; font-stretch: condensed; color: #0B4429; text-transform: uppercase; margin: 0; }
+.doc-titulo { font-size: 30pt; line-height: 1; margin-top: 6px; }
+.doc-subtitulo { font-family: Bahnschrift, 'Arial Narrow', Impact, sans-serif; font-weight: 700; font-size: 18pt; text-transform: uppercase; color: #1d1d1d; line-height: 1.1; }
+.doc-linha { border-top: 3px solid #F9CD0C; margin: 8px 0 10px; }
+.doc-local { font-weight: 700; color: #0B4429; font-size: 12pt; text-transform: uppercase; }
+.doc-cab b, .doc-assina b { color: #0B4429; }
+.doc h2 { font-size: 16pt; padding-bottom: 4px; border-bottom: 2px solid #F9CD0C; margin: 18px 0 8px; }
+.doc h3 { font-size: 11pt; color: #0B4429; margin: 10px 0 4px; }
+.doc ul { padding-left: 18px; margin: 4px 0 8px; list-style: square; }
+.doc li { margin: 3px 0; }
+.doc li::marker { color: #0B4429; }
+.doc p { margin: 6px 0; }
+.doc-itens, .doc-condicoes { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 9.5pt; }
+.doc-itens th { background: #0B4429; color: #F9CD0C; text-align: left; padding: 6px; }
+.doc-itens td { border-bottom: 1px solid #ccd; padding: 6px; vertical-align: top; }
+.doc-itens td:nth-child(n+4) { text-align: right; white-space: nowrap; }
+.doc-condicoes th { background: #0B4429; color: #F9CD0C; text-align: left; padding: 8px 10px; width: 34%; border-bottom: 1px solid #0B4429; }
+.doc-condicoes td { border: 1px solid #0B4429; padding: 8px 10px; }
+.doc-aceite { border: 1px solid #0B4429; border-top: 4px solid #F9CD0C; background: #eef3ef; padding: 4px 16px 10px; margin-top: 16px; break-inside: avoid; }
+.doc-secao { break-inside: auto; }
+.doc > tbody > tr { break-inside: auto; }
+.doc h2, .doc h3 { break-after: avoid; }
+
+@page { size: A4; margin: 8mm 0 10mm; @bottom-right { content: 'Página ' counter(page) ' de ' counter(pages); font-size: 8pt; color: #555; margin-right: 18mm; } }
+@media print {
+  body { background: #fff; }
+  .barra-impressao { display: none; }
+  .impressao, .doc, .doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .doc { max-width: none; }
+}
+.abas + main .busca { top: 96px; }

@@ -1,7 +1,10 @@
 import * as XLSX from 'xlsx';
 import { fmtData, fmtDataHora, hojeSP } from './datas';
-import { nomeEmpresa, nomeEtapa, type Contato, type Empresa } from './model';
+import { nomeEmpresa, nomeEtapa } from './model';
+import { saldos } from './estoque';
+import { totalOrcamento } from './orcamento';
 import { resumir } from './regras';
+import type { Dados } from '../db';
 import type { ArquivoCrm } from './sincronia';
 
 // Exportação gerada no navegador; o arquivo vai direto para a pasta de downloads.
@@ -14,13 +17,14 @@ function baixar(nome: string, dados: BlobPart, tipo: string) {
 }
 
 /** JSON completo (inclui excluídos), no mesmo formato do crm.json: serve de backup manual. */
-export function exportarJson(empresas: Empresa[], contatos: Contato[]) {
-  const arq: ArquivoCrm = { versao: 1, salvoEm: new Date().toISOString(), empresas, contatos };
+export function exportarJson(d: Dados) {
+  const arq: ArquivoCrm = { versao: 2, salvoEm: new Date().toISOString(), ...d };
   baixar(`crm_sof_${hojeSP()}.json`, JSON.stringify(arq, null, 1), 'application/json');
 }
 
-/** Planilha legível: empresas e contatos ativos. */
-export function planilhaExcel(empresas: Empresa[], contatos: Contato[]): XLSX.WorkBook {
+/** Planilha legível: só registros ativos. */
+export function planilhaExcel(d: Pick<Dados, 'empresas' | 'contatos'> & Partial<Dados>): XLSX.WorkBook {
+  const { empresas, contatos } = d;
   const ativas = empresas.filter((e) => !e.excluidoEm);
   const ids = new Set(ativas.map((e) => e.id));
   const cs = contatos.filter((c) => !c.excluidoEm && ids.has(c.empresaId));
@@ -48,10 +52,33 @@ export function planilhaExcel(empresas: Empresa[], contatos: Contato[]): XLSX.Wo
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhasE), 'Empresas');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(linhasC), 'Contatos');
+
+  const ativo = (r: { excluidoEm: string | null }) => !r.excluidoEm;
+  const orcs = (d.orcamentos ?? []).filter(ativo);
+  if (orcs.length) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(orcs.map((o) => ({
+      'Número': o.numero, 'Revisão': o.revisao, 'Data': fmtData(o.data), 'Cliente': o.cliente, 'Título': [o.titulo, o.subtitulo].filter(Boolean).join(' – '),
+      'Status': o.status, 'Valor total': totalOrcamento(o), 'Enviado em': fmtData(o.enviadoEm), 'Decidido em': fmtData(o.decididoEm), 'Motivo da recusa': o.motivoRecusa,
+    }))), 'Orçamentos');
+  }
+  const mats = (d.materiais ?? []).filter(ativo);
+  if (mats.length) {
+    const movs = (d.movimentos ?? []).filter(ativo);
+    const saldo = saldos(movs);
+    const nomeMat = new Map(mats.map((m) => [m.id, m.descricao]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mats.map((m) => ({
+      'Descrição': m.descricao, 'Fabricante': m.fabricante, 'Modelo': m.modelo, 'Unidade': m.unidade, 'Local': m.local,
+      'Saldo': saldo.get(m.id) ?? 0, 'Estoque mínimo': m.estoqueMinimo, 'Preço de venda': m.precoVenda, 'Observações': m.observacoes,
+    }))), 'Estoque');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...movs].sort((a, b) => b.data.localeCompare(a.data)).map((v) => ({
+      'Data/hora': fmtDataHora(v.data), 'Material': nomeMat.get(v.materialId) ?? '', 'Tipo': v.tipo, 'Quantidade': v.quantidade,
+      'Destino/origem': v.destino, 'Observação': v.observacao,
+    }))), 'Movimentações');
+  }
   return wb;
 }
 
-export function exportarExcel(empresas: Empresa[], contatos: Contato[]) {
-  const buf = XLSX.write(planilhaExcel(empresas, contatos), { type: 'array', bookType: 'xlsx' });
+export function exportarExcel(d: Dados) {
+  const buf = XLSX.write(planilhaExcel(d), { type: 'array', bookType: 'xlsx' });
   baixar(`crm_sof_${hojeSP()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }

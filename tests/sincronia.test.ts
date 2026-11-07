@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, salvarEmpresa } from '../src/db';
+import { TABELAS, db, salvar, salvarEmpresa } from '../src/db';
+import { novoMaterial, novoMovimento } from '../src/lib/estoque';
 import { empresaVazia, type Empresa } from '../src/lib/model';
-import { contarPendentes, mesclarRegistros, sincronizarCom, type ArquivoCrm, type Remoto } from '../src/lib/sincronia';
+import { contarPendentes, mesclarRegistros, sincronizarCom, validarArquivo, type ArquivoCrm, type Remoto } from '../src/lib/sincronia';
 
 const t = (min: number) => new Date(Date.UTC(2026, 10, 6, 12, min)).toISOString();
 const emp = (id: string, nome: string, atualizadoEm: string, extra: Partial<Empresa> = {}): Empresa =>
@@ -24,13 +25,13 @@ class RemotoFalso implements Remoto {
   }
   gravarDireto(empresas: Empresa[]) { // outro aparelho gravou
     this.versao++;
-    this.arquivo = { versao: 1, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [] };
+    this.arquivo = { versao: 2, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [], orcamentos: [], materiais: [], movimentos: [] };
   }
 }
 
 const local = async () => new Map((await db.empresas.toArray()).map((e) => [e.id, e]));
 
-beforeEach(async () => { await db.empresas.clear(); await db.contatos.clear(); });
+beforeEach(async () => { for (const n of TABELAS) await db.table(n).clear(); });
 
 describe('mesclagem registro a registro', () => {
   it('une por id e vence o maior atualizadoEm', () => {
@@ -114,5 +115,37 @@ describe('sincronização com o OneDrive', () => {
     await db.empresas.bulkPut([{ ...emp('1', 'Alfa', t(1)), sujo: 1 }]);
     await expect(sincronizarCom(r, 3)).rejects.toThrow(/várias vezes/);
     expect(await contarPendentes()).toBe(1);
+  });
+
+  it('arquivo antigo (v1, só CRM) é lido e regravado como v2 sem perder nada', async () => {
+    const r = new RemotoFalso();
+    // como está hoje no OneDrive: versao 1, sem as tabelas novas
+    r.arquivo = { versao: 1, salvoEm: t(0), empresas: [emp('1', 'Alfa', t(1))], contatos: [] } as unknown as ArquivoCrm;
+    r.versao = 1;
+    await sincronizarCom(r);
+    expect(r.arquivo!.versao).toBe(2);
+    expect(r.arquivo!.empresas.map((e) => e.razaoSocial)).toEqual(['Alfa']);
+    expect(r.arquivo!.materiais).toEqual([]);
+  });
+
+  it('formato desconhecido nunca é sobrescrito', () => {
+    expect(() => validarArquivo({ versao: 3, empresas: [], contatos: [] })).toThrow(/formato desconhecido/);
+    expect(validarArquivo({ versao: 1, empresas: [], contatos: [] }).movimentos).toEqual([]);
+  });
+
+  it('estoque: movimentos de dois aparelhos somam, nenhum se perde', async () => {
+    const r = new RemotoFalso();
+    const m = novoMaterial({ descricao: 'Borne' });
+    await salvar('materiais', m);
+    await salvar('movimentos', novoMovimento(m.id, 'Entrada', 100));
+    await sincronizarCom(r);
+    // celular registrou uma saída de 20 no OneDrive; este PC registrou outra de 30
+    r.arquivo = { ...r.arquivo!, movimentos: [...r.arquivo!.movimentos, novoMovimento(m.id, 'Saída', 20)] };
+    r.versao++;
+    await salvar('movimentos', novoMovimento(m.id, 'Saída', 30));
+    await sincronizarCom(r);
+    const soma = r.arquivo!.movimentos.reduce((s, v) => s + v.quantidade, 0);
+    expect(soma).toBe(50);
+    expect(await db.movimentos.count()).toBe(3);
   });
 });

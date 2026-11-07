@@ -1,4 +1,5 @@
-import type { Contato, Empresa, Registro } from './model';
+import { TABELAS, type Dados, type NomeTabela } from '../db';
+import type { Contato, Registro } from './model';
 import type { ArquivoCrm } from './sincronia';
 
 // Restaurar = o backup passa a ser a versão vigente. Para vencer a mesclagem
@@ -8,10 +9,8 @@ import type { ArquivoCrm } from './sincronia';
 export interface Diferenca { ativosAgora: number; ativosBackup: number; somem: number; voltam: number; mudam: number }
 
 export interface PlanoRestauracao {
-  empresas: Empresa[];
-  contatos: Contato[];
-  empresasDif: Diferenca;
-  contatosDif: Diferenca;
+  dados: Dados;
+  dif: Record<NomeTabela, Diferenca>;
   /** Nomes de empresas com contatos que serão perdidos (para a pré-visualização). */
   contatosPerdidos: Contato[];
 }
@@ -43,8 +42,15 @@ function planejar<T extends Registro>(atuais: T[], backup: T[], agora: string): 
   };
 }
 
-export function planejarRestauracao(atual: { empresas: Empresa[]; contatos: Contato[] }, backup: ArquivoCrm, agora = new Date().toISOString()): PlanoRestauracao {
-  const e = planejar(atual.empresas, backup.empresas, agora);
-  const c = planejar(atual.contatos, backup.contatos, agora);
-  return { empresas: e.lista, contatos: c.lista, empresasDif: e.dif, contatosDif: c.dif, contatosPerdidos: c.somem };
+export function planejarRestauracao(atual: Dados, backup: ArquivoCrm, agora = new Date().toISOString()): PlanoRestauracao {
+  const dados = {} as Record<NomeTabela, Registro[]>;
+  const dif = {} as Record<NomeTabela, Diferenca>;
+  let contatosPerdidos: Contato[] = [];
+  for (const n of TABELAS) {
+    const p = planejar<Registro>(atual[n], backup[n] ?? [], agora);
+    dados[n] = p.lista;
+    dif[n] = p.dif;
+    if (n === 'contatos') contatosPerdidos = p.somem as Contato[];
+  }
+  return { dados: dados as unknown as Dados, dif, contatosPerdidos };
 }

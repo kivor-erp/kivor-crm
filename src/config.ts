@@ -6,3 +6,14 @@ export const ESCOPOS = ['User.Read', 'Files.ReadWrite'];
 // Pasta no OneDrive da conta logada
 export const PASTA = 'SOF_CRM';
 export const BACKUPS_MANTIDOS = 30;
+
+// Quem emite as propostas (dados públicos da própria SOF, como na proposta PC-2026-CL057).
+export const EMISSOR = {
+  nome: 'SOF MONTAGENS',
+  cnpj: '04.734.431/0001-32',
+  telefone: '27 99577-7707',
+  email: 'contato@softecnoeletro.com.br',
+  responsavel: 'Solimar de Oliveira',
+  cargo: 'Sócio/Proprietário',
+  cidade: 'Serra/ES',
+};

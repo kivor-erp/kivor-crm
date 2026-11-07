@@ -5,6 +5,7 @@ import { excluirEmpresa, salvarEmpresa } from '../db';
 import { fmtData, fmtDataHora, hojeSP } from '../lib/datas';
 import { soDigitos } from '../lib/texto';
 import { empresaVazia, ETAPA_FECHADO, ETAPA_PERDIDO, ETAPAS, nomeEmpresa, type Empresa, type Etapa } from '../lib/model';
+import { totalOrcamento } from '../lib/orcamento';
 import { fmtMoeda, lerMoeda, linkTel, linkWhatsApp, RESUMO_VAZIO, separarTelefones, validarEtapa } from '../lib/regras';
 import { ir, useDados, voltar } from '../store';
 
@@ -94,6 +95,7 @@ export function Ficha({ id }: { id: string }) {
 
   const res = d.resumos.get(e.id) ?? RESUMO_VAZIO;
   const telefones = separarTelefones(e.telefone);
+  const orcs = d.orcamentos.filter((o) => o.empresaId === e.id).sort((a, b) => b.data.localeCompare(a.data));
 
   return (
     <>
@@ -134,6 +136,18 @@ export function Ficha({ id }: { id: string }) {
             </ul>
           </div>
         )}
+
+        <h2>Orçamentos ({orcs.length})</h2>
+        <div class="cartao">
+          {orcs.map((o) => (
+            <a key={o.id} class="linha-orc" href={`#/orcamento/${o.id}`}>
+              <span>{o.numero} rev. {String(o.revisao).padStart(2, '0')} · {fmtData(o.data)}</span>
+              <span class={`selo status-${o.status}`}>{o.status}</span>
+              <b>{fmtMoeda(totalOrcamento(o)) || 'R$ 0'}</b>
+            </a>
+          ))}
+          <button style="width:100%;margin-top:6px" onClick={() => ir(`orcamento/novo?empresa=${e.id}`)}>+ Novo orçamento para esta empresa</button>
+        </div>
 
         <h2>Funil</h2>
         <Funil e={e} />

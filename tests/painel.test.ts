@@ -93,10 +93,10 @@ describe('exportar Excel', () => {
   it('gera abas Empresas e Contatos só com ativos', async () => {
     const XLSX = await import('xlsx');
     const { planilhaExcel } = await import('../src/lib/exportar');
-    const wb = planilhaExcel(
-      [emp('a', { nomeFantasia: 'Alfa' }), emp('z', { excluidoEm: '2026-11-01T00:00:00Z' })],
-      [ct('a', '2026-11-04T14:30:00Z', 'Falei com o decisor'), ct('z', '2026-11-04T14:30:00Z', 'Sem resposta')],
-    );
+    const wb = planilhaExcel({
+      empresas: [emp('a', { nomeFantasia: 'Alfa' }), emp('z', { excluidoEm: '2026-11-01T00:00:00Z' })],
+      contatos: [ct('a', '2026-11-04T14:30:00Z', 'Falei com o decisor'), ct('z', '2026-11-04T14:30:00Z', 'Sem resposta')],
+    });
     expect(wb.SheetNames).toEqual(['Empresas', 'Contatos']);
     const e = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets.Empresas);
     const c = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets.Contatos);

@@ -44,6 +44,17 @@ Cria `KIVOR-CRM.lnk` na pasta do projeto (e na Área de Trabalho com `-AreaDeTra
 
 ---
 
+### Módulos (barra lateral)
+
+- **CRM**: Hoje (follow-ups), Empresas, Painel semanal.
+- **Orçamentos**: propostas no padrão da SOF (PC-AAAA-CLnnn, revisões, itens com valor por extenso, blocos prontos de
+  escopo: preditiva, corretiva, plano preventivo elétrico, checklist NR-10, prazos de atendimento). **Imprimir / PDF** gera a
+  proposta com cabeçalho e rodapé da SOF. Marcar como *Enviado*, *Aprovado* ou *Recusado* atualiza a etapa da empresa no CRM.
+  Dados do emissor (nome, CNPJ, telefone, quem assina) ficam em `src/config.ts` (`EMISSOR`).
+- **WMS**: estoque de materiais. O saldo é sempre a soma das movimentações (entrada, saída, inventário), então dois
+  aparelhos nunca perdem lançamentos. **Importar** lê a planilha de controle de materiais (colunas Descrição/Fabricante/
+  Modelo/Quant.): linhas do mesmo modelo são somadas e reimportar não duplica (vira ajuste de inventário).
+
 ## 2. Rodar no computador (desenvolvimento)
 
 Pré-requisito: Node.js. Neste PC ele está instalado **sem admin** em `%LOCALAPPDATA%\Programs\nodejs`
@@ -51,7 +62,7 @@ Pré-requisito: Node.js. Neste PC ele está instalado **sem admin** em `%LOCALAP
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173  (http://localhost:5173/?semlogin abre sem login, só para testes de tela)
 npm test         # testes (Vitest)
 npm run build    # gera dist/
 ```
@@ -117,9 +128,10 @@ O app usa o OneDrive **de quem entra** (`/me/drive`). Hoje:
 
 ```
 src/lib/      regras puras (modelo, datas, importação, regras de etapa, mesclagem, métricas, restauração, exportação)
-src/telas/    Hoje, Empresas, Ficha, Registrar contato, Painel, Ajustes (importar/restaurar)
+src/telas/    CRM (Hoje, Empresas, Ficha, Registrar, Painel), Orçamentos (lista, editor, impressão), Estoque, Ajustes
 src/db.ts     IndexedDB (Dexie)    src/auth.ts  login MSAL    src/onedrive.ts  Microsoft Graph
 src/sync.ts   quando sincronizar + estado na tela
 public/sw.js  service worker (offline)
-tests/        Vitest: datas, regras, importação (planilha fictícia), sincronização/conflitos, painel, restauração
+tests/        Vitest: datas, regras, importação (planilha fictícia), sincronização/conflitos, painel, restauração,
+              orçamentos (por extenso, numeração, funil), estoque (saldo, importação)
 ```
