@@ -12,7 +12,7 @@ export function Unidades() {
   const [ed, setEd] = useState<Unidade | null>(null);
   const [erro, setErro] = useState('');
   const [msg, setMsg] = useState('');
-  const [destino, setDestino] = useState('');
+  const [destino, setDestino] = useState<Record<'materiais' | 'orcamentos', string>>({ materiais: '', orcamentos: '' });
 
   async function gravar() {
     if (!ed) return;
@@ -23,16 +23,26 @@ export function Unidades() {
     setEd(null); setErro('');
   }
 
-  async function atribuir() {
-    const u = d.unidades.find((x) => x.id === destino);
+  /** Materiais e orçamentos antigos são atribuídos separadamente (podem ser de empresas diferentes). */
+  async function atribuir(tipo: 'materiais' | 'orcamentos') {
+    const u = d.unidades.find((x) => x.id === destino[tipo]);
     if (!u) return;
-    const mats = semUnidade((await db.materiais.toArray()).filter((m) => !m.excluidoEm));
-    const orcs = semUnidade((await db.orcamentos.toArray()).filter((o) => !o.excluidoEm));
-    if (!confirm(`Atribuir ${mats.length} materiais e ${orcs.length} orçamentos sem empresa a ${u.nome}?`)) return;
-    if (mats.length) await salvar('materiais', ...mats.map((m) => ({ ...m, unidadeId: u.id })));
-    if (orcs.length) await salvar('orcamentos', ...orcs.map((o) => ({ ...o, unidadeId: u.id })));
-    setMsg(`${mats.length} materiais e ${orcs.length} orçamentos agora são de ${u.nome}.`);
+    const lista = semUnidade((await db.table(tipo).toArray() as { excluidoEm: string | null; unidadeId?: string | null }[]).filter((r) => !r.excluidoEm));
+    const rotulo = tipo === 'materiais' ? 'materiais' : 'orçamentos';
+    if (!lista.length || !confirm(`Atribuir ${lista.length} ${rotulo} sem empresa a ${u.nome}?`)) return;
+    await salvar(tipo, ...(lista as never[]).map((r: object) => ({ ...r, unidadeId: u.id }) as never));
+    setMsg(`${lista.length} ${rotulo} agora são de ${u.nome}.`);
   }
+  const linhaAtribuir = (tipo: 'materiais' | 'orcamentos', n: number, rotulo: string) => n > 0 && (
+    <div class="fila" style="margin-top:8px">
+      <span style="flex:0;white-space:nowrap">{n} {rotulo}</span>
+      <select value={destino[tipo]} onChange={(e) => setDestino({ ...destino, [tipo]: e.currentTarget.value })}>
+        <option value="">Atribuir a…</option>
+        {d.unidades.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+      </select>
+      <button style="flex:0" disabled={!destino[tipo]} onClick={() => atribuir(tipo)}>Atribuir</button>
+    </div>
+  );
 
   const campo = (k: keyof Unidade, rot: string, ph = '') => (
     <div><label>{rot}</label><input value={String(ed![k] ?? '')} placeholder={ph} onInput={(e) => setEd({ ...ed!, [k]: e.currentTarget.value })} /></div>
@@ -60,14 +70,9 @@ export function Unidades() {
       )}
       {pendentes > 0 && (
         <div class="erro">
-          {d.semUnidade.materiais} materiais e {d.semUnidade.orcamentos} orçamentos são de antes das empresas e não aparecem em nenhuma.
-          <div class="fila" style="margin-top:8px">
-            <select value={destino} onChange={(e) => setDestino(e.currentTarget.value)}>
-              <option value="">Atribuir a…</option>
-              {d.unidades.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-            </select>
-            <button style="flex:0" disabled={!destino} onClick={atribuir}>Atribuir</button>
-          </div>
+          Registros de antes das empresas não aparecem em nenhuma até serem atribuídos:
+          {linhaAtribuir('materiais', d.semUnidade.materiais, 'materiais (com as movimentações)')}
+          {linhaAtribuir('orcamentos', d.semUnidade.orcamentos, 'orçamentos')}
         </div>
       )}
       {msg && <div class="sucesso">{msg}</div>}

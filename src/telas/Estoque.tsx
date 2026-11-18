@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
-import { Topo } from '../componentes';
+import { CampoValor, Topo } from '../componentes';
 import { db, excluir, salvar } from '../db';
 import { fmtDataHora } from '../lib/datas';
 import { nomeMaterial, novoMaterial, novoMovimento, planejarImportacaoMateriais, type PlanoMateriais } from '../lib/estoque';
@@ -15,20 +15,53 @@ const baixo = (m: Material, saldo: number) => saldo <= 0 || (m.estoqueMinimo !==
 
 // ---------- lista ----------
 
+/** Preço com centavos (R$ 8.045,99). Vazio quando não se sabe. */
+const fmtPreco = (v: number | null | undefined) => (v === null || v === undefined ? '' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+
+type ColunaGrade = 'descricao' | 'embalagem' | 'fabricante' | 'modelo' | 'local' | 'saldo' | 'venda' | 'compra' | 'valor';
+const COLUNAS: { k: ColunaGrade; rot: string; num?: boolean }[] = [
+  { k: 'descricao', rot: 'Descrição' }, { k: 'embalagem', rot: 'Embalagem' }, { k: 'fabricante', rot: 'Fabricante' }, { k: 'modelo', rot: 'Modelo' },
+  { k: 'local', rot: 'Local' }, { k: 'saldo', rot: 'Qtd', num: true }, { k: 'venda', rot: 'Preço venda', num: true },
+  { k: 'compra', rot: 'Preço compra', num: true }, { k: 'valor', rot: 'Valor em estoque (venda)', num: true },
+];
+
 export function Estoque() {
   const d = useDados();
   const [busca, setBusca] = useState('');
   const [soBaixo, setSoBaixo] = useState(false);
+  const [emb, setEmb] = useState<'' | 'Com caixa' | 'Sem caixa'>('');
+  const [ordem, setOrdem] = useState<{ k: ColunaGrade; desc: boolean }>({ k: 'descricao', desc: false });
+  const valorDe = (m: Material, k: ColunaGrade): string | number | null => {
+    const s = d.saldo.get(m.id) ?? 0;
+    switch (k) {
+      case 'saldo': return s;
+      case 'venda': return m.precoVenda;
+      case 'compra': return m.precoCompra ?? null;
+      case 'valor': return m.precoVenda === null ? null : s * m.precoVenda;
+      case 'embalagem': return m.embalagem ?? '';
+      default: return m[k];
+    }
+  };
   const lista = useMemo(() => {
     const termos = normalizar(busca).split(' ').filter(Boolean);
+    const dir = ordem.desc ? -1 : 1;
     return d.materiais
       .filter((m) => {
         const alvo = normalizar(`${m.descricao} ${m.fabricante} ${m.modelo} ${m.local}`);
-        return termos.every((t) => alvo.includes(t)) && (!soBaixo || baixo(m, d.saldo.get(m.id) ?? 0));
+        return termos.every((t) => alvo.includes(t)) && (!soBaixo || baixo(m, d.saldo.get(m.id) ?? 0)) && (!emb || m.embalagem === emb);
       })
-      .sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
-  }, [d.materiais, d.saldo, busca, soBaixo]);
+      .sort((a, b) => {
+        const x = valorDe(a, ordem.k), y = valorDe(b, ordem.k);
+        if (x === null || x === '') return 1; // vazios sempre no fim
+        if (y === null || y === '') return -1;
+        return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'pt-BR')) * dir;
+      });
+  }, [d.materiais, d.saldo, busca, soBaixo, emb, ordem]);
   const nBaixo = d.materiais.filter((m) => baixo(m, d.saldo.get(m.id) ?? 0)).length;
+  const tot = lista.reduce((t, m) => {
+    const s = d.saldo.get(m.id) ?? 0;
+    return { qtd: t.qtd + s, venda: t.venda + (m.precoVenda ?? 0) * s, compra: t.compra + (m.precoCompra ?? 0) * s, semCompra: t.semCompra + (m.precoCompra == null ? 1 : 0) };
+  }, { qtd: 0, venda: 0, compra: 0, semCompra: 0 });
 
   if (d.unidade && !d.unidade.temEstoque) {
     return <div class="cartao vazio"><p>{d.unidade.nome} não controla estoque.</p><p class="peq">Escolha outra empresa no seletor acima ou marque "Tem estoque" em Ajustes › Empresas do grupo.</p></div>;
@@ -46,30 +79,59 @@ export function Estoque() {
     <>
       <div class="busca"><input type="search" placeholder="Buscar descrição, fabricante, modelo ou local" value={busca} onInput={(e) => setBusca(e.currentTarget.value)} /></div>
       <div class="chips">
+        {(['', 'Com caixa', 'Sem caixa'] as const).map((e) => (
+          <button key={e} class={`chip peq ${emb === e ? 'sel' : ''}`} onClick={() => setEmb(e)}>{e || 'Todos'}</button>
+        ))}
         <button class={`chip peq ${soBaixo ? 'sel' : ''}`} onClick={() => setSoBaixo(!soBaixo)}>Sem saldo / abaixo do mínimo ({nBaixo})</button>
       </div>
       <div class="fila" style="margin:8px 0">
-        <span class="peq">{lista.length} de {d.materiais.length} materiais</span>
+        <span class="peq">{lista.length} de {d.materiais.length} itens</span>
         <button style="flex:0" onClick={() => ir('estoque/importar')}>Importar</button>
         <button class="primario" style="flex:0" onClick={() => ir('material/novo')}>+ Material</button>
       </div>
-      <ul class="lista">
-        {lista.map((m) => {
-          const s = d.saldo.get(m.id) ?? 0;
-          return (
-            <li key={m.id} class="cartao">
-              <a class="linha-empresa fila" href={`#/material/${m.id}`} style="align-items:center">
-                <div>
-                  <div class="nome">{m.descricao || '(sem descrição)'} {m.embalagem && <span class={`selo ${m.embalagem === 'Sem caixa' ? 'status-Enviado' : ''}`}>{m.embalagem}</span>}</div>
-                  <div class="sub">{[m.fabricante, m.modelo, m.precoVenda !== null ? fmtMoeda(m.precoVenda) : ''].filter(Boolean).join(' · ')}</div>
-                  {m.local && <div class="peq">📍 {m.local}</div>}
-                </div>
-                <div class={`saldo ${baixo(m, s) ? 'baixo' : ''}`}>{fmtQtd(s)}<small>{m.unidade}</small></div>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+      <div class="cartao" style="overflow-x:auto;padding:6px 8px">
+        <table class="tabela" style="white-space:nowrap">
+          <thead>
+            <tr>
+              {COLUNAS.map((c) => (
+                <th key={c.k} style={`cursor:pointer;${c.num ? 'text-align:right' : ''}`} title="Ordenar"
+                  onClick={() => setOrdem({ k: c.k, desc: ordem.k === c.k ? !ordem.desc : !!c.num })}>
+                  {c.rot}{ordem.k === c.k ? (ordem.desc ? ' ▼' : ' ▲') : ''}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map((m) => {
+              const s = d.saldo.get(m.id) ?? 0;
+              return (
+                <tr key={m.id} style="cursor:pointer" onClick={() => ir(`material/${m.id}`)}>
+                  <td style="white-space:normal;min-width:220px"><a href={`#/material/${m.id}`}>{m.descricao || '(sem descrição)'}</a></td>
+                  <td>{m.embalagem || ''}</td>
+                  <td>{m.fabricante}</td>
+                  <td>{m.modelo}</td>
+                  <td>{m.local}</td>
+                  <td style={`text-align:right;${baixo(m, s) ? 'color:var(--perigo);font-weight:600' : ''}`}>{fmtQtd(s)} {m.unidade}</td>
+                  <td style="text-align:right">{fmtPreco(m.precoVenda)}</td>
+                  <td style="text-align:right">{fmtPreco(m.precoCompra)}</td>
+                  <td style="text-align:right">{m.precoVenda === null ? '' : fmtPreco(s * m.precoVenda)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style="font-weight:600">
+              <td colSpan={5}>Total ({lista.length} itens)</td>
+              <td style="text-align:right">{fmtQtd(tot.qtd)}</td>
+              <td></td>
+              <td style="text-align:right" title="Soma só dos itens com preço de compra conhecido">{tot.compra ? fmtPreco(tot.compra) : ''}</td>
+              <td style="text-align:right">{fmtPreco(tot.venda)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="peq">Clique no título da coluna para ordenar e na linha para abrir o item. Preço de compra em branco = ainda não se sabe
+        {tot.semCompra ? ` (${tot.semCompra} itens)` : ''}; o total de compra soma só os conhecidos.</p>
     </>
   );
 }
@@ -165,8 +227,9 @@ function FichaMaterial({ material }: { material: Material | null }) {
               </select></div>
             {campo('local', 'Local no estoque', 'ex.: Prateleira A3, caixa 2')}
             {campo('unidade', 'Unidade', 'un, m, cx…')}
-            <div><label>Estoque mínimo</label><input inputMode="decimal" value={m.estoqueMinimo ?? ''} onInput={(e) => setM({ ...m, estoqueMinimo: lerMoeda(e.currentTarget.value) })} /></div>
-            <div><label>Preço de venda (R$)</label><input inputMode="decimal" value={m.precoVenda ?? ''} onInput={(e) => setM({ ...m, precoVenda: lerMoeda(e.currentTarget.value) })} /></div>
+            <div><label>Estoque mínimo</label><CampoValor valor={m.estoqueMinimo} aoMudar={(v) => setM({ ...m, estoqueMinimo: v })} /></div>
+            <div><label>Preço de venda (R$)</label><CampoValor valor={m.precoVenda} aoMudar={(v) => setM({ ...m, precoVenda: v })} /></div>
+            <div><label>Preço de compra (R$)</label><CampoValor valor={m.precoCompra} ph="em branco = não se sabe" aoMudar={(v) => setM({ ...m, precoCompra: v })} /></div>
           </div>
           <label>Observações</label><textarea value={m.observacoes} onInput={(e) => setM({ ...m, observacoes: e.currentTarget.value })} />
           {erro && !tipo && <div class="erro">{erro}</div>}
@@ -270,7 +333,7 @@ export function ImportarMateriais() {
               <details>
                 <summary>{plano.precos.length} preços de venda definidos ou alterados</summary>
                 <table class="tabela"><thead><tr><th>Item</th><th>Antes</th><th>Planilha</th></tr></thead><tbody>
-                  {plano.precos.map((x) => <tr key={x.material.id}><td>{nomeMaterial(x.material)} · {x.material.modelo}</td><td>{x.de === null ? '—' : fmtMoeda(x.de)}</td><td>{fmtMoeda(x.para)}</td></tr>)}
+                  {plano.precos.map((x) => <tr key={x.material.id}><td>{nomeMaterial(x.material)} · {x.material.modelo}</td><td>{x.de === null ? '—' : fmtPreco(x.de)}</td><td>{fmtPreco(x.para)}</td></tr>)}
                 </tbody></table>
               </details>
             )}
@@ -278,7 +341,7 @@ export function ImportarMateriais() {
               <div class="erro">
                 {plano.conflitosPreco.length} itens aparecem em mais de uma linha com preços diferentes. Foi usado o maior; revise depois na ficha do material:
                 <ul class="peq">{plano.conflitosPreco.map((l) => (
-                  <li key={`${l.modelo}-${l.embalagem}`}>{l.modelo || l.descricao} ({l.embalagem || 'sem embalagem informada'}): {l.precosDiferentes.map(fmtMoeda).join(' / ')} · linhas {l.linhas.join(', ')}</li>
+                  <li key={`${l.modelo}-${l.embalagem}`}>{l.modelo || l.descricao} ({l.embalagem || 'sem embalagem informada'}): {l.precosDiferentes.map(fmtPreco).join(' / ')} · linhas {l.linhas.join(', ')}</li>
                 ))}</ul>
               </div>
             )}

@@ -213,6 +213,8 @@ export interface Material extends Registro {
   local: string; // endereço no estoque: prateleira, caixa…
   estoqueMinimo: number | null;
   precoVenda: number | null;
+  /** Custo unitário de compra (virá do XML da NF-e de entrada). null/ausente = não se sabe. */
+  precoCompra?: number | null;
   observacoes: string;
 }
 

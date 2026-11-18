@@ -68,7 +68,7 @@ export function planilhaExcel(d: Pick<Dados, 'empresas' | 'contatos'> & Partial<
     const nomeMat = new Map(mats.map((m) => [m.id, m.descricao]));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mats.map((m) => ({
       'Descrição': m.descricao, 'Fabricante': m.fabricante, 'Modelo': m.modelo, 'Embalagem': m.embalagem ?? '', 'Unidade': m.unidade, 'Local': m.local,
-      'Saldo': saldo.get(m.id) ?? 0, 'Estoque mínimo': m.estoqueMinimo, 'Preço de venda': m.precoVenda, 'Observações': m.observacoes,
+      'Saldo': saldo.get(m.id) ?? 0, 'Estoque mínimo': m.estoqueMinimo, 'Preço de venda': m.precoVenda, 'Preço de compra': m.precoCompra ?? null, 'Observações': m.observacoes,
     }))), 'Estoque');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...movs].sort((a, b) => b.data.localeCompare(a.data)).map((v) => ({
       'Data/hora': fmtDataHora(v.data), 'Material': nomeMat.get(v.materialId) ?? '', 'Tipo': v.tipo, 'Quantidade': v.quantidade,

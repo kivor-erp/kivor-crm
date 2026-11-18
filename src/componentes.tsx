@@ -1,7 +1,8 @@
+import { useState } from 'preact/hooks';
 import { entrar } from './auth';
 import { corUltimoContato, textoHaDias } from './lib/datas';
 import { nomeEtapa, type Configuracoes, type Empresa } from './lib/model';
-import { linkMapsDe, linkTel, linkWhatsApp, separarTelefones, type ResumoEmpresa } from './lib/regras';
+import { lerMoeda, linkMapsDe, linkTel, linkWhatsApp, separarTelefones, type ResumoEmpresa } from './lib/regras';
 import { ir } from './store';
 import { sincronizar, textoEstado, useSync } from './sync';
 
@@ -35,6 +36,12 @@ export function BotoesAcao({ e, telefone, semRegistrar }: { e: Empresa; telefone
       {!semRegistrar && <button class="registrar" onClick={() => ir(`registrar/${e.id}`)}><span class="ic">✚</span>Registrar</button>}
     </div>
   );
+}
+
+/** Campo numérico que aceita vírgula enquanto se digita ("12," não vira "12"). Vazio = null. */
+export function CampoValor({ valor, aoMudar, ph }: { valor: number | null | undefined; aoMudar: (n: number | null) => void; ph?: string }) {
+  const [t, setT] = useState(valor === null || valor === undefined ? '' : valor.toLocaleString('pt-BR', { maximumFractionDigits: 4 }));
+  return <input inputMode="decimal" value={t} placeholder={ph} onInput={(e) => { setT(e.currentTarget.value); aoMudar(lerMoeda(e.currentTarget.value)); }} />;
 }
 
 /** Estado da sincronização; tocar tenta de novo (ou pede login, se a sessão expirou). */
