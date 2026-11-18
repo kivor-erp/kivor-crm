@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { chaveMaterial, novoMovimento, planejarImportacaoMateriais, saldos } from '../src/lib/estoque';
-import { lerPlanilhaMateriais } from '../src/lib/importarMateriais';
+import { chaveMaterial, novoMaterial, novoMovimento, planejarImportacaoMateriais, saldos } from '../src/lib/estoque';
+import { embalagemDoTitulo, lerPlanilhaMateriais } from '../src/lib/importarMateriais';
 
 // Planilha fictícia no formato do "Controle de materiais elétricos" (nada de dado real além do layout).
 function planilha(linhas: unknown[][]) {
@@ -33,6 +33,37 @@ describe('estoque', () => {
     ]));
     expect(l).toHaveLength(2);
     expect(l[0]).toMatchObject({ descricao: 'Sensor de pressão', fabricante: 'IFM', modelo: 'PN 2070', quantidade: 2, linhas: [2, 4] });
+  });
+
+  it('com caixa e sem caixa são itens separados, cada um com seu preço (vale o maior em linhas repetidas)', () => {
+    const wb = XLSX.utils.book_new();
+    const cab = (t: string) => ['ITEN', t, 'FABRICANTE ', 'MODELO ', 'QUANT.', 'Valor \nDimensional', 'Valor \nTotal ', 'DESCONTO\n%\nUNIT.'];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      cab('CONTROLE DE MATERIAIS ELETRICOS C/ EMBALAGEM'), [], [1, 'Bloco luminoso', 'Schneider', 'ZB4BVB1', 4, 87, 348],
+    ]), 'Com');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+      cab('CONTROLE DE MATERIAIS ELETRICOS S/EMBALAGENS '), [],
+      [1, 'Bloco luminoso', 'Schneider', 'ZB4BVB1 ', 6, 33, 198, 23.1],
+      [2, 'Disjuntor motor', 'Siemens', '3RV20111FA10', 54, 391, 21114, 273.7],
+      [3, 'Disjuntor motor', 'Siemens', '3RV2011-1FA10', 13, 287, 3731, 200.9],
+    ]), 'Sem');
+    const l = lerPlanilhaMateriais(XLSX.read(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }), { type: 'array' }));
+    const ach = (modelo: string, emb: string) => l.find((x) => x.modelo.trim().replace(/-/g, '') === modelo && x.embalagem === emb);
+    expect(l).toHaveLength(3);
+    expect(ach('ZB4BVB1', 'Com caixa')).toMatchObject({ quantidade: 4, preco: 87 });
+    expect(ach('ZB4BVB1', 'Sem caixa')).toMatchObject({ quantidade: 6, preco: 33 }); // nunca o valor com desconto
+    expect(ach('3RV20111FA10', 'Sem caixa')).toMatchObject({ quantidade: 67, preco: 391, precosDiferentes: [391, 287] });
+    expect(embalagemDoTitulo(['Controle de materiais sem caixa'])).toBe('Sem caixa');
+    expect(embalagemDoTitulo(['Materiais'])).toBe('');
+
+    // estoque antigo (importado antes, sem embalagem e sem preço) = itens com caixa
+    const antigo = novoMaterial({ descricao: 'Bloco luminoso', modelo: 'ZB4BVB1' });
+    const p = planejarImportacaoMateriais([antigo], new Map([[antigo.id, 4]]), l);
+    expect(p.atualizados).toEqual([expect.objectContaining({ id: antigo.id, embalagem: 'Com caixa', precoVenda: 87 })]);
+    expect(p.novos.map((m) => [m.modelo.trim(), m.embalagem, m.precoVenda])).toEqual([['ZB4BVB1', 'Sem caixa', 33], ['3RV20111FA10', 'Sem caixa', 391]]);
+    expect(p.movimentos.filter((v) => v.materialId === antigo.id)).toEqual([]); // quantidade igual: sem ajuste
+    expect(p.conflitosPreco.map((x) => x.modelo)).toEqual(['3RV20111FA10']);
+    expect(p.precos).toHaveLength(3);
   });
 
   it('importar de novo não duplica: ajusta o saldo para a quantidade da planilha', () => {

@@ -1,3 +1,4 @@
+import { dadosVazios } from '../src/db';
 import { describe, expect, it } from 'vitest';
 import { novoMaterial, novoMovimento } from '../src/lib/estoque';
 import { empresaVazia, type Contato, type Empresa } from '../src/lib/model';
@@ -17,12 +18,14 @@ describe('restaurar backup', () => {
   const mat = novoMaterial({ descricao: 'Borne' });
   const mov = novoMovimento(mat.id, 'Entrada', 10);
   const backup = {
-    versao: 2 as const, salvoEm: '2026-11-01T10:00:00Z',
+    ...dadosVazios(), // backup de um app antigo, sem as tabelas novas: restauram como listas vazias
+    versao: 3 as const, salvoEm: '2026-11-01T10:00:00Z',
     empresas: [emp('a', '2026-11-01T09:00:00Z', { etapa: 3 }), emp('b', '2026-10-30T09:00:00Z')],
     contatos: [ct('c1', '2026-11-01T09:00:00Z')],
     orcamentos: [orc], materiais: [mat], movimentos: [mov],
   };
   const atual = {
+    ...dadosVazios(),
     empresas: [
       emp('a', '2026-11-05T09:00:00Z', { etapa: 5 }), // mudou depois do backup
       emp('b', '2026-11-04T09:00:00Z', { excluidoEm: '2026-11-04T09:00:00Z' }), // excluída depois do backup

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TABELAS, db, salvar, salvarEmpresa } from '../src/db';
+import { TABELAS, dadosVazios, db, salvar, salvarEmpresa } from '../src/db';
 import { novoMaterial, novoMovimento } from '../src/lib/estoque';
 import { empresaVazia, type Empresa } from '../src/lib/model';
 import { contarPendentes, mesclarRegistros, sincronizarCom, validarArquivo, type ArquivoCrm, type Remoto } from '../src/lib/sincronia';
@@ -25,7 +25,7 @@ class RemotoFalso implements Remoto {
   }
   gravarDireto(empresas: Empresa[]) { // outro aparelho gravou
     this.versao++;
-    this.arquivo = { versao: 2, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [], orcamentos: [], materiais: [], movimentos: [] };
+    this.arquivo = { ...dadosVazios(), versao: 3, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [] };
   }
 }
 
@@ -123,13 +123,13 @@ describe('sincronização com o OneDrive', () => {
     r.arquivo = { versao: 1, salvoEm: t(0), empresas: [emp('1', 'Alfa', t(1))], contatos: [] } as unknown as ArquivoCrm;
     r.versao = 1;
     await sincronizarCom(r);
-    expect(r.arquivo!.versao).toBe(2);
+    expect(r.arquivo!.versao).toBe(3);
     expect(r.arquivo!.empresas.map((e) => e.razaoSocial)).toEqual(['Alfa']);
     expect(r.arquivo!.materiais).toEqual([]);
   });
 
   it('formato desconhecido nunca é sobrescrito', () => {
-    expect(() => validarArquivo({ versao: 3, empresas: [], contatos: [] })).toThrow(/formato desconhecido/);
+    expect(() => validarArquivo({ versao: 4, empresas: [], contatos: [] })).toThrow(/formato desconhecido/);
     expect(validarArquivo({ versao: 1, empresas: [], contatos: [] }).movimentos).toEqual([]);
   });
 

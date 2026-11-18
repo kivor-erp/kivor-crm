@@ -1,8 +1,11 @@
 import Dexie, { type Table } from 'dexie';
 import {
   CONFIG_PADRAO, agoraIso, novoId, type Configuracoes, type Contato, type Empresa, type Material, type Movimento,
-  type Orcamento, type Registro,
+  type Orcamento, type Registro, type Unidade,
 } from './lib/model';
+import type {
+  AnuncioMk, CampanhaMk, ContaMk, ConversaoMk, GrupoMk, LeadMk, MetricaMk, PalavraMk, ProdutoMk, TermoMk,
+} from './lib/trafego/modelo';
 
 // Banco local (IndexedDB). Toda gravação vai primeiro para cá; a sincronização
 // com o OneDrive lê os registros marcados como `sujo`.
@@ -12,7 +15,10 @@ export type Local<T> = T & { sujo: 0 | 1 };
 export interface Meta { chave: string; valor: unknown }
 
 /** Todas as tabelas sincronizadas com o crm.json. */
-export const TABELAS = ['empresas', 'contatos', 'orcamentos', 'materiais', 'movimentos'] as const;
+export const TABELAS = [
+  'empresas', 'contatos', 'orcamentos', 'materiais', 'movimentos', 'unidades',
+  'mkContas', 'mkCampanhas', 'mkGrupos', 'mkPalavras', 'mkAnuncios', 'mkProdutos', 'mkMetricas', 'mkTermos', 'mkLeads', 'mkConversoes',
+] as const;
 export type NomeTabela = (typeof TABELAS)[number];
 export interface Dados {
   empresas: Empresa[];
@@ -20,6 +26,21 @@ export interface Dados {
   orcamentos: Orcamento[];
   materiais: Material[];
   movimentos: Movimento[];
+  unidades: Unidade[];
+  mkContas: ContaMk[];
+  mkCampanhas: CampanhaMk[];
+  mkGrupos: GrupoMk[];
+  mkPalavras: PalavraMk[];
+  mkAnuncios: AnuncioMk[];
+  mkProdutos: ProdutoMk[];
+  mkMetricas: MetricaMk[];
+  mkTermos: TermoMk[];
+  mkLeads: LeadMk[];
+  mkConversoes: ConversaoMk[];
+}
+
+export function dadosVazios(): Dados {
+  return Object.fromEntries(TABELAS.map((n) => [n, []])) as unknown as Dados;
 }
 
 class CrmDb extends Dexie {
@@ -42,6 +63,13 @@ class CrmDb extends Dexie {
       materiais: 'id, sujo',
       movimentos: 'id, materialId, sujo',
     });
+    // v3: unidades (CNPJ) e módulo Tráfego Pago. Todas as tabelas MK levam unidadeId.
+    const mk = 'id, unidadeId, sujo';
+    this.version(3).stores({
+      unidades: 'id, sujo',
+      mkContas: mk, mkCampanhas: mk, mkGrupos: mk, mkPalavras: mk, mkAnuncios: mk, mkProdutos: mk,
+      mkMetricas: mk, mkTermos: mk, mkLeads: mk, mkConversoes: mk,
+    });
   }
 }
 
@@ -60,10 +88,19 @@ function marcar<T extends { atualizadoEm: string }>(r: T, agora = agoraIso()): L
   return { ...r, atualizadoEm: agora, sujo: 1 };
 }
 
+// Unidade (CNPJ) escolhida no seletor. Material e orçamento novos nascem nela.
+let unidadeAtiva: string | null = null;
+export function definirUnidadeAtiva(id: string | null): void { unidadeAtiva = id; }
+const COM_UNIDADE: NomeTabela[] = ['materiais', 'orcamentos'];
+function carimbar<T>(n: NomeTabela, r: T): T {
+  const x = r as T & { unidadeId?: string | null };
+  return COM_UNIDADE.includes(n) && !x.unidadeId && unidadeAtiva ? { ...x, unidadeId: unidadeAtiva } : r;
+}
+
 /** Grava registros de orçamentos/estoque (e qualquer tabela sem regra especial). */
 export async function salvar<T extends Registro>(n: NomeTabela, ...registros: T[]): Promise<void> {
   const agora = agoraIso();
-  await tabela<T>(n).bulkPut(registros.map((r) => marcar(r, agora)));
+  await tabela<T>(n).bulkPut(registros.map((r) => marcar(carimbar(n, r), agora)));
   avisar();
 }
 
@@ -114,7 +151,7 @@ export async function excluirContato(id: string): Promise<void> {
 export async function salvarOrcamento(o: Orcamento, empresa?: Empresa): Promise<void> {
   const agora = agoraIso();
   await db.transaction('rw', db.orcamentos, db.empresas, async () => {
-    await db.orcamentos.put(marcar(o, agora));
+    await db.orcamentos.put(marcar(carimbar('orcamentos', o), agora));
     if (empresa) await gravarEmpresa(empresa, agora);
   });
   avisar();

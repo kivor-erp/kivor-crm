@@ -5,7 +5,7 @@ import { saldos } from './estoque';
 import { totalOrcamento } from './orcamento';
 import { resumir } from './regras';
 import type { Dados } from '../db';
-import type { ArquivoCrm } from './sincronia';
+import { VERSAO_ARQUIVO, type ArquivoCrm } from './sincronia';
 
 // Exportação gerada no navegador; o arquivo vai direto para a pasta de downloads.
 
@@ -18,7 +18,7 @@ function baixar(nome: string, dados: BlobPart, tipo: string) {
 
 /** JSON completo (inclui excluídos), no mesmo formato do crm.json: serve de backup manual. */
 export function exportarJson(d: Dados) {
-  const arq: ArquivoCrm = { versao: 2, salvoEm: new Date().toISOString(), ...d };
+  const arq: ArquivoCrm = { versao: VERSAO_ARQUIVO, salvoEm: new Date().toISOString(), ...d };
   baixar(`crm_sof_${hojeSP()}.json`, JSON.stringify(arq, null, 1), 'application/json');
 }
 
@@ -67,7 +67,7 @@ export function planilhaExcel(d: Pick<Dados, 'empresas' | 'contatos'> & Partial<
     const saldo = saldos(movs);
     const nomeMat = new Map(mats.map((m) => [m.id, m.descricao]));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mats.map((m) => ({
-      'Descrição': m.descricao, 'Fabricante': m.fabricante, 'Modelo': m.modelo, 'Unidade': m.unidade, 'Local': m.local,
+      'Descrição': m.descricao, 'Fabricante': m.fabricante, 'Modelo': m.modelo, 'Embalagem': m.embalagem ?? '', 'Unidade': m.unidade, 'Local': m.local,
       'Saldo': saldo.get(m.id) ?? 0, 'Estoque mínimo': m.estoqueMinimo, 'Preço de venda': m.precoVenda, 'Observações': m.observacoes,
     }))), 'Estoque');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...movs].sort((a, b) => b.data.localeCompare(a.data)).map((v) => ({

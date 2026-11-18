@@ -12,6 +12,8 @@ import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { Registrar } from './telas/Registrar';
+import { TelaMk } from './telas/Trafego';
+import { SeletorUnidade } from './telas/Unidades';
 
 // Só no `npm run dev` (nunca no site publicado): ?semlogin abre sem Microsoft e sem sincronizar, para testes automáticos de tela.
 const SEM_LOGIN = import.meta.env.DEV && new URLSearchParams(location.search).has('semlogin');
@@ -30,7 +32,22 @@ const MODULOS = [
     { rota: 'estoque', rotulo: 'Estoque' },
     { rota: 'movimentacoes', rotulo: 'Movimentações' },
   ] },
+  // Tráfego Pago: códigos de transação MK01–MK10 nas abas
+  { id: 'trafego', nome: 'Tráfego', ic: '📣', itens: [
+    { rota: 'mk01', rotulo: 'MK01 Painel' },
+    { rota: 'mk02', rotulo: 'MK02 Canais e contas' },
+    { rota: 'mk03', rotulo: 'MK03 Campanhas e grupos' },
+    { rota: 'mk04', rotulo: 'MK04 Palavras-chave' },
+    { rota: 'mk05', rotulo: 'MK05 Textos de anúncio' },
+    { rota: 'mk06', rotulo: 'MK06 Produtos anunciáveis' },
+    { rota: 'mk07', rotulo: 'MK07 Importar relatórios' },
+    { rota: 'mk08', rotulo: 'MK08 Google Meu Negócio' },
+    { rota: 'mk09', rotulo: 'MK09 Leads' },
+    { rota: 'mk10', rotulo: 'MK10 Conversões e alertas' },
+  ] },
 ];
+/** Módulos cujos dados são separados por empresa (CNPJ): mostram o seletor de empresa. */
+const POR_UNIDADE = new Set(['orcamentos', 'wms', 'trafego']);
 const AJUSTES = { id: 'config', nome: 'Ajustes', ic: '⚙️' };
 // telas de detalhe pertencem ao CRM
 const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms' };
@@ -86,6 +103,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
   return (
     <>
       <Topo titulo={item && item.rotulo !== modulo.nome ? `${modulo.nome} · ${item.rotulo}` : modulo.nome} />
+      {POR_UNIDADE.has(modulo.id) && <SeletorUnidade />}
       <BarraItens modulo={modulo} atual={item?.rota ?? ''} />
       <main>
         {item?.rota === 'hoje' && <Hoje />}
@@ -94,6 +112,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'orcamentos' && <Orcamentos rota={rota} />}
         {item?.rota === 'estoque' && <Estoque />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}
+        {modulo.id === 'trafego' && item && <TelaMk rota={item.rota} />}
       </main>
     </>
   );

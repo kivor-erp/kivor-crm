@@ -153,6 +153,8 @@ export interface ItemOrcamento {
 export interface Secao { titulo: string; texto: string }
 
 export interface Orcamento extends Registro {
+  /** Empresa do grupo (CNPJ) que emite. Ausente em registros anteriores às unidades. */
+  unidadeId?: string | null;
   numero: string; // PC-2026-CL057
   revisao: number;
   data: string; // AAAA-MM-DD
@@ -175,12 +177,38 @@ export interface Orcamento extends Registro {
   motivoRecusa: string;
 }
 
+// ---------- Unidades (empresas do grupo, uma por CNPJ) ----------
+
+/**
+ * Empresa dona dos dados. Estoque, orçamentos e tráfego pago são sempre de uma unidade
+ * e nunca se misturam. Configurável em Ajustes (o KIVOR é piloto para outros clientes).
+ */
+export interface Unidade extends Registro {
+  cnpj: string; // só dígitos
+  nome: string; // nome curto/fantasia, aparece no seletor e nas propostas
+  razaoSocial: string;
+  atividade: string; // ex.: "Venda de produtos", "Mão de obra e instalações"
+  temEstoque: boolean;
+  telefone: string;
+  email: string;
+  responsavel: string;
+  cargo: string;
+  cidade: string;
+}
+
 // ---------- WMS (estoque de materiais) ----------
 
+export const EMBALAGENS = ['Com caixa', 'Sem caixa'] as const;
+export type Embalagem = (typeof EMBALAGENS)[number];
+
 export interface Material extends Registro {
+  /** Empresa do grupo (CNPJ) dona do estoque. Movimentações seguem o material. */
+  unidadeId?: string | null;
   descricao: string;
   fabricante: string;
   modelo: string; // código/part number
+  /** O mesmo modelo com e sem caixa são itens diferentes (preço e saldo próprios). '' = não informado. */
+  embalagem?: Embalagem | '';
   unidade: string;
   local: string; // endereço no estoque: prateleira, caixa…
   estoqueMinimo: number | null;

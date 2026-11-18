@@ -5,14 +5,18 @@ import { TABELAS, aplicarImportacao, aplicarRestauracao, db, lerTudo, limparLoca
 
 const ROTULO_TABELA: Record<NomeTabela, string> = {
   empresas: 'Empresas', contatos: 'Contatos', orcamentos: 'Orçamentos', materiais: 'Materiais', movimentos: 'Movimentações',
+  unidades: 'Unidades (CNPJ)', mkContas: 'MK · Contas', mkCampanhas: 'MK · Campanhas', mkGrupos: 'MK · Grupos',
+  mkPalavras: 'MK · Palavras-chave', mkAnuncios: 'MK · Anúncios', mkProdutos: 'MK · Produtos', mkMetricas: 'MK · Métricas',
+  mkTermos: 'MK · Termos', mkLeads: 'MK · Leads', mkConversoes: 'MK · Conversões',
 };
 import { fmtData } from '../lib/datas';
 import { nomeEmpresa } from '../lib/model';
 import { planejarRestauracao, type PlanoRestauracao } from '../lib/restaurar';
-import { contarPendentes } from '../lib/sincronia';
+import { VERSAO_ARQUIVO, contarPendentes } from '../lib/sincronia';
 import { baixarBackup, copiaAntesDeRestaurar, listarBackups, type ItemBackup } from '../onedrive';
 import type { LeituraPlanilha, PlanoImportacao } from '../lib/importar';
 import { ir, useDados, voltar } from '../store';
+import { Unidades } from './Unidades';
 import { sincronizar, textoEstado, useSync } from '../sync';
 
 async function exportar(tipo: 'excel' | 'json') {
@@ -42,6 +46,9 @@ export function Config() {
         <p style="margin-top:0">{d.empresas.length} empresas no CRM · {d.contatos.length} contatos registrados.</p>
         <button class="primario grande" onClick={() => ir('config/importar')}>Importar planilha (.xlsx)</button>
       </div>
+
+      <h2>Empresas do grupo (CNPJ)</h2>
+      <Unidades />
 
       <h2>Exportar e backup</h2>
       <div class="cartao">
@@ -228,7 +235,7 @@ export function Restaurar() {
     try {
       setOcupado('Guardando uma cópia do estado atual…');
       const atual = await lerTudo();
-      const copia = await copiaAntesDeRestaurar(await token(), { versao: 2, salvoEm: new Date().toISOString(), ...atual });
+      const copia = await copiaAntesDeRestaurar(await token(), { versao: VERSAO_ARQUIVO, salvoEm: new Date().toISOString(), ...atual });
       setOcupado('Restaurando…');
       await aplicarRestauracao(plano.dados);
       await sincronizar();

@@ -2,11 +2,12 @@ import { useMemo, useState } from 'preact/hooks';
 import { Topo } from '../componentes';
 import { db, excluir, salvar } from '../db';
 import { fmtDataHora } from '../lib/datas';
-import { novoMaterial, novoMovimento, planejarImportacaoMateriais, type PlanoMateriais } from '../lib/estoque';
+import { nomeMaterial, novoMaterial, novoMovimento, planejarImportacaoMateriais, type PlanoMateriais } from '../lib/estoque';
 import type { MaterialLido } from '../lib/importarMateriais';
-import type { Material, Movimento, TipoMovimento } from '../lib/model';
+import { EMBALAGENS, type Material, type Movimento, type TipoMovimento } from '../lib/model';
 import { fmtMoeda, lerMoeda } from '../lib/regras';
 import { normalizar } from '../lib/texto';
+import { daUnidade } from '../lib/unidades';
 import { ir, useDados, voltar } from '../store';
 
 const fmtQtd = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
@@ -29,6 +30,9 @@ export function Estoque() {
   }, [d.materiais, d.saldo, busca, soBaixo]);
   const nBaixo = d.materiais.filter((m) => baixo(m, d.saldo.get(m.id) ?? 0)).length;
 
+  if (d.unidade && !d.unidade.temEstoque) {
+    return <div class="cartao vazio"><p>{d.unidade.nome} não controla estoque.</p><p class="peq">Escolha outra empresa no seletor acima ou marque "Tem estoque" em Ajustes › Empresas do grupo.</p></div>;
+  }
   if (d.pronto && !d.materiais.length) {
     return (
       <div class="cartao vazio">
@@ -56,8 +60,8 @@ export function Estoque() {
             <li key={m.id} class="cartao">
               <a class="linha-empresa fila" href={`#/material/${m.id}`} style="align-items:center">
                 <div>
-                  <div class="nome">{m.descricao || '(sem descrição)'}</div>
-                  <div class="sub">{[m.fabricante, m.modelo].filter(Boolean).join(' · ')}</div>
+                  <div class="nome">{m.descricao || '(sem descrição)'} {m.embalagem && <span class={`selo ${m.embalagem === 'Sem caixa' ? 'status-Enviado' : ''}`}>{m.embalagem}</span>}</div>
+                  <div class="sub">{[m.fabricante, m.modelo, m.precoVenda !== null ? fmtMoeda(m.precoVenda) : ''].filter(Boolean).join(' · ')}</div>
                   {m.local && <div class="peq">📍 {m.local}</div>}
                 </div>
                 <div class={`saldo ${baixo(m, s) ? 'baixo' : ''}`}>{fmtQtd(s)}<small>{m.unidade}</small></div>
@@ -154,6 +158,11 @@ function FichaMaterial({ material }: { material: Material | null }) {
           <div class="grade2">
             {campo('fabricante', 'Fabricante')}
             {campo('modelo', 'Modelo / código')}
+            <div><label>Embalagem</label>
+              <select value={m.embalagem ?? ''} onChange={(e) => setM({ ...m, embalagem: e.currentTarget.value as Material['embalagem'] })}>
+                <option value="">Não informada</option>
+                {EMBALAGENS.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select></div>
             {campo('local', 'Local no estoque', 'ex.: Prateleira A3, caixa 2')}
             {campo('unidade', 'Unidade', 'un, m, cx…')}
             <div><label>Estoque mínimo</label><input inputMode="decimal" value={m.estoqueMinimo ?? ''} onInput={(e) => setM({ ...m, estoqueMinimo: lerMoeda(e.currentTarget.value) })} /></div>
@@ -229,7 +238,8 @@ export function ImportarMateriais() {
   async function confirmar() {
     if (!lidos) return;
     setOcupado(true);
-    const p = planejarImportacaoMateriais(await db.materiais.toArray().then((ms) => ms.filter((m) => !m.excluidoEm)), d.saldo, lidos);
+    const todos = await db.materiais.toArray().then((ms) => ms.filter((m) => !m.excluidoEm));
+    const p = planejarImportacaoMateriais(daUnidade(todos, d.unidade?.id ?? null, d.unidades.length > 0), d.saldo, lidos);
     await salvar('materiais', ...p.novos, ...p.atualizados);
     if (p.movimentos.length) await salvar('movimentos', ...p.movimentos);
     setFeito(`${p.novos.length} materiais novos, ${p.atualizados.length} atualizados, ${p.movimentos.length} lançamentos de quantidade.`);
@@ -242,7 +252,9 @@ export function ImportarMateriais() {
       <main>
         <div class="cartao">
           <p style="margin-top:0">Escolha a planilha (.xlsx) de controle de materiais com as colunas <b>Descrição</b>, <b>Fabricante</b>, <b>Modelo</b> e <b>Quant.</b></p>
-          <p class="peq">Linhas do mesmo modelo são somadas. Material que já existe não é duplicado: se a quantidade da planilha for diferente do saldo, entra um lançamento de inventário com a diferença.</p>
+          <p class="peq">Linhas do mesmo modelo são somadas. Abas "C/ EMBALAGEM" e "S/ EMBALAGEM" viram itens separados (com caixa e sem caixa), cada um com seu preço.
+            A coluna "Valor Dimensional" (ou "Valor unitário") vira o preço de venda. Material que já existe não é duplicado: se a quantidade da planilha
+            for diferente do saldo, entra um lançamento de inventário com a diferença.</p>
           <input type="file" accept=".xlsx,.xls,.csv" disabled={ocupado} onChange={(e) => { const i = e.currentTarget; void escolher(i.files?.[0]).finally(() => { i.value = ''; }); }} />
         </div>
         {erro && <div class="erro">{erro}</div>}
@@ -253,7 +265,23 @@ export function ImportarMateriais() {
               <div><b>{plano.atualizados.length + plano.movimentos.filter((v) => v.tipo === 'Ajuste').length}</b>com mudança</div>
               <div><b>{plano.semMudanca}</b>iguais</div>
             </div>
-            {plano.somadas > 0 && <p class="peq">{plano.somadas} modelos apareciam em mais de uma linha e foram somados.</p>}
+            {plano.somadas > 0 && <p class="peq">{plano.somadas} itens apareciam em mais de uma linha e foram somados (com caixa e sem caixa ficam separados).</p>}
+            {plano.precos.length > 0 && (
+              <details>
+                <summary>{plano.precos.length} preços de venda definidos ou alterados</summary>
+                <table class="tabela"><thead><tr><th>Item</th><th>Antes</th><th>Planilha</th></tr></thead><tbody>
+                  {plano.precos.map((x) => <tr key={x.material.id}><td>{nomeMaterial(x.material)} · {x.material.modelo}</td><td>{x.de === null ? '—' : fmtMoeda(x.de)}</td><td>{fmtMoeda(x.para)}</td></tr>)}
+                </tbody></table>
+              </details>
+            )}
+            {plano.conflitosPreco.length > 0 && (
+              <div class="erro">
+                {plano.conflitosPreco.length} itens aparecem em mais de uma linha com preços diferentes. Foi usado o maior; revise depois na ficha do material:
+                <ul class="peq">{plano.conflitosPreco.map((l) => (
+                  <li key={`${l.modelo}-${l.embalagem}`}>{l.modelo || l.descricao} ({l.embalagem || 'sem embalagem informada'}): {l.precosDiferentes.map(fmtMoeda).join(' / ')} · linhas {l.linhas.join(', ')}</li>
+                ))}</ul>
+              </div>
+            )}
             <button class="primario grande" disabled={ocupado || (!plano.novos.length && !plano.atualizados.length && !plano.movimentos.length)} onClick={confirmar}>
               {plano.novos.length || plano.atualizados.length || plano.movimentos.length ? 'Confirmar importação' : 'Nada para importar'}
             </button>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Topo } from '../componentes';
-import { EMISSOR } from '../config';
+import { EMISSOR as EMISSOR_PADRAO } from '../config';
+import { fmtCnpj } from '../lib/unidades';
 import { excluir, salvarOrcamento } from '../db';
 import { fmtData } from '../lib/datas';
 import { nomeEmpresa, STATUS_ORCAMENTO, type ItemOrcamento, type Orcamento, type Secao, type StatusOrcamento } from '../lib/model';
@@ -283,6 +284,11 @@ export function ImprimirOrcamento({ id }: { id: string }) {
   useEffect(() => { document.title = o ? `${o.numero} ${rev(o)} – ${o.cliente}` : 'Proposta'; return () => { document.title = 'KIVOR-CRM'; }; }, [o?.id]);
   if (!d.pronto) return null;
   if (!o) return <main><div class="vazio">Orçamento não encontrado.</div></main>;
+  // emissor = empresa do grupo (CNPJ) do orçamento; sem unidade, o padrão de config.ts
+  const u = d.unidades.find((x) => x.id === o.unidadeId);
+  const EMISSOR = u
+    ? { nome: u.nome, cnpj: fmtCnpj(u.cnpj), telefone: u.telefone, email: u.email, responsavel: u.responsavel, cargo: u.cargo, cidade: u.cidade }
+    : EMISSOR_PADRAO;
   const total = totalOrcamento(o);
   const iInv = o.secoes.findIndex((s) => normalizar(s.titulo).startsWith('responsabilidade'));
   const secoes: (Secao | 'investimento')[] = [...o.secoes];

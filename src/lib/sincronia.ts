@@ -7,11 +7,12 @@ import { agoraIso, type Registro } from './model';
 // gravou no meio (412). Nada é apagado: exclusão é sempre lógica (excluidoEm).
 
 /**
- * versao 2 = com orçamentos e estoque. Versões antigas do app recusam o arquivo v2
- * (não reconhecem a versão) em vez de regravá-lo sem as tabelas novas.
+ * versao 2 = com orçamentos e estoque; 3 = com unidades (CNPJ) e Tráfego Pago. Versões antigas do
+ * app recusam o arquivo novo (não reconhecem a versão) em vez de regravá-lo sem as tabelas novas.
  */
+export const VERSAO_ARQUIVO = 3;
 export interface ArquivoCrm extends Dados {
-  versao: 2;
+  versao: typeof VERSAO_ARQUIVO;
   salvoEm: string;
 }
 
@@ -40,13 +41,13 @@ export function semNovidade<T extends Registro>(remoto: T[], mesclado: T[]): boo
   return mesclado.every((r) => v.get(r.id) === r.atualizadoEm);
 }
 
-/** Aceita v1 (só CRM) e v2; tabelas ausentes viram listas vazias. */
+/** Aceita v1 (só CRM), v2 e v3; tabelas ausentes viram listas vazias. */
 export function validarArquivo(x: unknown): ArquivoCrm {
   const a = x as Partial<Dados> & { versao?: unknown };
-  if (!a || (a.versao !== 1 && a.versao !== 2) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
+  if (!a || ![1, 2, 3].includes(a.versao as number) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
     throw new Error('crm.json no OneDrive está num formato desconhecido; nada foi alterado.');
   }
-  const r = { ...a, versao: 2 } as ArquivoCrm;
+  const r = { ...a, versao: VERSAO_ARQUIVO } as ArquivoCrm;
   for (const n of TABELAS) if (!Array.isArray(r[n])) (r[n] as Registro[]) = [];
   return r;
 }
@@ -79,13 +80,13 @@ export async function sincronizarCom(remoto: Remoto, tentativas = 5): Promise<Ar
   for (let i = 0; i < tentativas; i++) {
     const { dados: rem, eTag } = await remoto.baixar();
     const mesclado = {} as Record<(typeof TABELAS)[number], Registro[]>;
-    let enviar = !rem || (rem as { versao: number }).versao !== 2;
+    let enviar = !rem || (rem as { versao: number }).versao !== VERSAO_ARQUIVO;
     for (const n of TABELAS) {
       const remotos = (rem?.[n] ?? []) as Registro[];
       mesclado[n] = mesclarRegistros(remotos, (await tabela(n).toArray()).map(limpar));
       if (rem && !semNovidade(remotos, mesclado[n])) enviar = true;
     }
-    const arquivo: ArquivoCrm = enviar ? { versao: 2, salvoEm: agoraIso(), ...(mesclado as unknown as Dados) } : rem!;
+    const arquivo: ArquivoCrm = enviar ? { versao: VERSAO_ARQUIVO, salvoEm: agoraIso(), ...(mesclado as unknown as Dados) } : rem!;
     if (enviar && (await remoto.enviar(arquivo, eTag)) === 'conflito') continue; // outro aparelho gravou: mescla de novo
     await db.transaction('rw', TABELAS.map((n) => db.table(n)), async () => {
       for (const n of TABELAS) await aplicarTabela(tabela(n), mesclado[n]);
