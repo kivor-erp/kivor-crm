@@ -50,6 +50,7 @@ export function novoFornecedor(p: Partial<Fornecedor> = {}): Fornecedor {
   const agora = agoraIso();
   return {
     id: novoId(), nome: '', razaoSocial: '', cnpj: '', cidade: '', endereco: '', telefone: '', email: '', site: '', tipos: [], marcas: '',
+    uf: '', whatsapp: '', emailCotacao: '', categorias: [], fonte: '', verificado: false,
     observacao: '', criadoEm: agora, atualizadoEm: agora, excluidoEm: null, ...p,
   };
 }

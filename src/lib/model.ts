@@ -246,8 +246,18 @@ export interface Fornecedor extends Registro {
   site: string;
   /** Tipos de equipamento/serviço que vende (ex.: "Inversores de frequência", "Resistores de frenagem"). */
   tipos: string[];
-  marcas: string; // marcas que trabalha
+  marcas: string; // marcas que trabalha (separadas por ; ou ,)
   observacao: string; // inclui de onde veio a informação e o que falta confirmar
+  // Campos do motor de cotação. Opcionais: fornecedores cadastrados antes continuam válidos.
+  uf?: string; // se vazio, deduzida de "Cidade/UF"
+  whatsapp?: string; // WhatsApp comercial (só dígitos, com DDD)
+  emailCotacao?: string; // e-mail de vendas/cotação (se vazio, usa `email`)
+  /** Ids da taxonomia de produtos (src/lib/catalogoCompras.ts), indexáveis para a busca. */
+  categorias?: string[];
+  /** De onde veio o cadastro (URL, catálogo, indicação). */
+  fonte?: string;
+  /** true quando alguém confirmou telefone/CNPJ com o fornecedor ou em fonte oficial. */
+  verificado?: boolean;
 }
 
 // ---------- Compras (pedido / ordem de compra) ----------

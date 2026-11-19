@@ -94,7 +94,7 @@ export function Estoque() {
         <button class="primario" style="flex:0" onClick={() => ir('material/novo')}>+ Material</button>
       </div>
       <div class="cartao" style="overflow-x:auto;padding:6px 8px">
-        <table class="tabela" style="white-space:nowrap">
+        <table class="tabela">
           <thead>
             <tr>
               {COLUNAS.map((c) => (
@@ -110,16 +110,16 @@ export function Estoque() {
               const s = d.saldo.get(m.id) ?? 0;
               return (
                 <tr key={m.id} style="cursor:pointer" onClick={() => ir(`material/${m.id}`)}>
-                  <td style="white-space:normal;min-width:220px"><a href={`#/material/${m.id}`}>{m.descricao || '(sem descrição)'}</a></td>
-                  <td>{m.embalagem || ''}</td>
+                  <td style="min-width:220px"><a href={`#/material/${m.id}`}>{m.descricao || '(sem descrição)'}</a></td>
+                  <td style="white-space:nowrap">{m.embalagem || ''}</td>
                   <td>{m.fabricante}</td>
-                  <td>{m.modelo}</td>
-                  <td>{m.ean ?? ''}</td>
+                  <td style="word-break:break-word;min-width:150px">{m.modelo}</td>
+                  <td style="white-space:nowrap">{m.ean ?? ''}</td>
                   <td>{m.local}</td>
-                  <td style={`text-align:right;${baixo(m, s) ? 'color:var(--perigo);font-weight:600' : ''}`}>{fmtQtd(s)} {m.unidade}</td>
-                  <td style="text-align:right">{fmtPreco(m.precoVenda)}</td>
-                  <td style="text-align:right">{fmtPreco(m.precoCompra)}</td>
-                  <td style="text-align:right">{m.precoVenda === null ? '' : fmtPreco(s * m.precoVenda)}</td>
+                  <td style={`white-space:nowrap;text-align:right;${baixo(m, s) ? 'color:var(--perigo);font-weight:600' : ''}`}>{fmtQtd(s)} {m.unidade}</td>
+                  <td style="white-space:nowrap;text-align:right">{fmtPreco(m.precoVenda)}</td>
+                  <td style="white-space:nowrap;text-align:right">{fmtPreco(m.precoCompra)}</td>
+                  <td style="white-space:nowrap;text-align:right">{m.precoVenda === null ? '' : fmtPreco(s * m.precoVenda)}</td>
                 </tr>
               );
             })}

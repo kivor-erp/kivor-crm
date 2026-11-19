@@ -13,6 +13,7 @@ import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
 import { CompraTela, Compras, Fornecedores, ImprimirCompra } from './telas/Compras';
+import { Cotacao } from './telas/Cotacao';
 import { Registrar } from './telas/Registrar';
 import { TelaMk } from './telas/Trafego';
 import { SeletorUnidade } from './telas/Unidades';
@@ -38,6 +39,7 @@ const MODULOS = [
   ] },
   // Tráfego Pago: códigos de transação MK01–MK10 nas abas
   { id: 'compras', nome: 'Compras', ic: '🛒', itens: [
+    { rota: 'cotacao', rotulo: 'Cotação' },
     { rota: 'compras', rotulo: 'Pedidos de compra' },
     { rota: 'fornecedores', rotulo: 'Fornecedores' },
   ] },
@@ -123,6 +125,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'estoque' && <Estoque />}
         {item?.rota === 'entradas' && <EntradaNfe />}
         {item?.rota === 'saidas' && <Saidas />}
+        {item?.rota === 'cotacao' && <Cotacao />}
         {item?.rota === 'compras' && <Compras />}
         {item?.rota === 'fornecedores' && <Fornecedores />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}

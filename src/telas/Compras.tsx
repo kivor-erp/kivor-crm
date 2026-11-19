@@ -11,6 +11,10 @@ import { nomeMaterial } from '../lib/estoque';
 import { STATUS_COMPRA, nomeEmpresa, type Fornecedor, type PedidoCompra, type StatusCompra } from '../lib/model';
 import { normalizar } from '../lib/texto';
 import { fmtCnpj } from '../lib/unidades';
+import { CATEGORIAS, nomeCategoria } from '../lib/catalogoCompras';
+import { estaNoES } from '../lib/buscaFornecedor';
+import { lerCarga, planejarCarga, type PlanoCarga } from '../lib/cargaFornecedores';
+import { emailCotacao } from '../lib/cotacao';
 import { ir, useDados, voltar } from '../store';
 
 // Compras: pedidos (ordens) de compra a fornecedores, ligados ao orçamento do cliente que os originou.
@@ -145,7 +149,7 @@ function EditorCompra({ inicial }: { inicial: PedidoCompra }) {
             <thead><tr><th>Descrição</th><th>Cód. fornecedor</th><th>Item do estoque</th><th>Un</th><th>Qtd</th><th>Custo unit. (R$)</th><th style="text-align:right">Total</th><th></th></tr></thead>
             <tbody>{p.itens.map((i, k) => (
               <tr key={k}>
-                <td style="min-width:260px"><textarea rows={2} value={i.descricao} onInput={(e) => mudarItem(k, { descricao: e.currentTarget.value })} /></td>
+                <td style="min-width:260px;width:42%"><textarea rows={3} value={i.descricao} onInput={(e) => mudarItem(k, { descricao: e.currentTarget.value })} /></td>
                 <td style="min-width:120px"><input value={i.codigo} onInput={(e) => mudarItem(k, { codigo: e.currentTarget.value })} /></td>
                 <td style="min-width:160px">
                   <select value={i.materialId ?? ''} onChange={(e) => mudarItem(k, { materialId: e.currentTarget.value || null })}>
@@ -230,20 +234,35 @@ export function Fornecedores() {
   const [tiposTxt, setTiposTxt] = useState('');
   const [erro, setErro] = useState('');
   const [filtro, setFiltro] = useState('');
+  const [plano, setPlano] = useState<PlanoCarga | null>(null);
+  const [erroCarga, setErroCarga] = useState('');
   const lista = fornecedoresDoTipo(d.fornecedores, filtro);
   const todosTipos = [...new Set(d.fornecedores.flatMap((f) => f.tipos))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const abrir = (f: Fornecedor) => { setEd(f); setTiposTxt(f.tipos.join('; ')); setErro(''); };
 
+  async function lerArquivo(arq: File | undefined) {
+    setPlano(null); setErroCarga('');
+    if (!arq) return;
+    const r = lerCarga(await arq.text());
+    if (r.erro || !r.carga) return setErroCarga(r.erro ?? 'Arquivo inválido.');
+    setPlano(planejarCarga(d.fornecedores, r.carga));
+  }
+  async function confirmarCarga() {
+    if (!plano) return;
+    await salvar('fornecedores', ...plano.novos, ...plano.atualizados);
+    setPlano(null);
+  }
+
   async function gravar() {
     if (!ed) return;
-    const f = { ...ed, cnpj: ed.cnpj.replace(/\D/g, ''), tipos: lerTipos(tiposTxt) };
+    const f = { ...ed, cnpj: ed.cnpj.replace(/\D/g, ''), whatsapp: (ed.whatsapp ?? '').replace(/\D/g, ''), tipos: lerTipos(tiposTxt) };
     const e = validarFornecedor(f, d.fornecedores);
     if (e) return setErro(e);
     await salvar('fornecedores', f);
     setEd(null);
   }
-  const campo = (k: 'nome' | 'razaoSocial' | 'cnpj' | 'cidade' | 'endereco' | 'telefone' | 'email' | 'site' | 'marcas', rot: string, ph = '') => (
-    <div><label>{rot}</label><input value={ed![k]} placeholder={ph} onInput={(e) => setEd({ ...ed!, [k]: e.currentTarget.value })} /></div>
+  const campo = (k: 'nome' | 'razaoSocial' | 'cnpj' | 'cidade' | 'endereco' | 'telefone' | 'email' | 'site' | 'marcas' | 'whatsapp' | 'emailCotacao' | 'fonte', rot: string, ph = '') => (
+    <div><label>{rot}</label><input value={ed![k] ?? ''} placeholder={ph} onInput={(e) => setEd({ ...ed!, [k]: e.currentTarget.value })} /></div>
   );
 
   return (
@@ -254,8 +273,22 @@ export function Fornecedores() {
       </div>
       <div class="fila" style="margin:8px 0">
         <span class="peq">{lista.length} fornecedores (valem para todas as empresas do grupo)</span>
+        <label class="botao" style="flex:0;white-space:nowrap;cursor:pointer">Importar JSON
+          <input type="file" accept=".json,application/json" style="display:none" onChange={(e) => { void lerArquivo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} /></label>
         <button class="primario" style="flex:0" onClick={() => abrir(novoFornecedor())}>+ Fornecedor</button>
       </div>
+      {erroCarga && <div class="erro">{erroCarga}</div>}
+      {plano && (
+        <div class="cartao">
+          <b>Carga de fornecedores</b>
+          <p>{plano.novos.length} novos · {plano.atualizados.length} a completar (só campos vazios e listas; o que você editou não muda) · {plano.iguais} já iguais</p>
+          {plano.avisos.length > 0 && <details><summary class="peq">{plano.avisos.length} avisos</summary><ul class="peq" style="margin:4px 0;padding-left:18px">{plano.avisos.slice(0, 50).map((a, k) => <li key={k}>{a}</li>)}</ul></details>}
+          <div class="fila">
+            <button class="primario" disabled={!plano.novos.length && !plano.atualizados.length} onClick={confirmarCarga}>{plano.novos.length || plano.atualizados.length ? 'Confirmar importação' : 'Nada para importar'}</button>
+            <button style="flex:0" onClick={() => setPlano(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
       {ed && (
         <div class="cartao">
           <div class="grade2">
@@ -263,9 +296,17 @@ export function Fornecedores() {
             {campo('cnpj', 'CNPJ')}{campo('cidade', 'Cidade/UF', 'ex.: Serra/ES')}
             {campo('endereco', 'Endereço')}{campo('telefone', 'Telefone')}
             {campo('email', 'E-mail')}{campo('site', 'Site')}
-            {campo('marcas', 'Marcas', 'ex.: WEG, Siemens')}
+            {campo('marcas', 'Marcas', 'ex.: WEG; Siemens; Intelbras')}
+            {campo('whatsapp', 'WhatsApp comercial', 'DDD + número')}{campo('emailCotacao', 'E-mail de vendas/cotação')}
+            {campo('fonte', 'Fonte da informação', 'site, catálogo, indicação')}
             <div><label>Tipos de equipamento que vende</label><input value={tiposTxt} placeholder="separe com ; (ex.: Inversores de frequência; Motores)" onInput={(e) => setTiposTxt(e.currentTarget.value)} /></div>
           </div>
+          <label>Categorias de produto (usadas na busca da Cotação)</label>
+          <div class="chips">{CATEGORIAS.map((c) => {
+            const on = (ed.categorias ?? []).includes(c.id);
+            return <button key={c.id} type="button" class={`chip peq ${on ? 'sel' : ''}`} onClick={() => setEd({ ...ed, categorias: on ? (ed.categorias ?? []).filter((x) => x !== c.id) : [...(ed.categorias ?? []), c.id] })}>{c.nome}</button>;
+          })}</div>
+          <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" style="flex:0" checked={!!ed.verificado} onChange={(e) => setEd({ ...ed, verificado: e.currentTarget.checked })} /> Contato verificado (telefone/CNPJ confirmados)</label>
           <label>Observação (fonte da informação, o que falta confirmar)</label>
           <textarea value={ed.observacao} onInput={(e) => setEd({ ...ed, observacao: e.currentTarget.value })} />
           {erro && <div class="erro">{erro}</div>}
@@ -283,9 +324,9 @@ export function Fornecedores() {
             <tbody>{lista.map((f) => (
               <tr key={f.id}>
                 <td>{f.nome}<div class="peq">{[f.razaoSocial, f.cnpj && fmtCnpj(f.cnpj)].filter(Boolean).join(' · ')}</div></td>
-                <td>{f.cidade}</td>
-                <td>{f.tipos.join(', ')}{f.marcas && <div class="peq">{f.marcas}</div>}</td>
-                <td>{f.telefone}<div class="peq">{[f.email, f.site].filter(Boolean).join(' · ')}</div></td>
+                <td>{f.cidade}{estaNoES(f) && <div><span class="selo status-Aprovado">ES</span></div>}</td>
+                <td>{f.tipos.join(', ')}{f.marcas && <div class="peq">{f.marcas}</div>}{(f.categorias ?? []).length > 0 && <div class="peq">{(f.categorias ?? []).map(nomeCategoria).join(' · ')}</div>}</td>
+                <td>{f.whatsapp || f.telefone}{f.verificado && <span class="peq"> ✓</span>}<div class="peq">{[emailCotacao(f), f.site].filter(Boolean).join(' · ')}</div></td>
                 <td><button onClick={() => abrir(f)}>Editar</button></td>
               </tr>
             ))}</tbody>
