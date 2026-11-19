@@ -12,6 +12,7 @@ import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
+import { CompraTela, Compras, ImprimirCompra } from './telas/Compras';
 import { Registrar } from './telas/Registrar';
 import { TelaMk } from './telas/Trafego';
 import { SeletorUnidade } from './telas/Unidades';
@@ -36,6 +37,9 @@ const MODULOS = [
     { rota: 'movimentacoes', rotulo: 'Movimentações' },
   ] },
   // Tráfego Pago: códigos de transação MK01–MK10 nas abas
+  { id: 'compras', nome: 'Compras', ic: '🛒', itens: [
+    { rota: 'compras', rotulo: 'Pedidos de compra' },
+  ] },
   { id: 'trafego', nome: 'Tráfego', ic: '📣', itens: [
     { rota: 'mk01', rotulo: 'MK01 Painel' },
     { rota: 'mk02', rotulo: 'MK02 Canais e contas' },
@@ -50,10 +54,10 @@ const MODULOS = [
   ] },
 ];
 /** Módulos cujos dados são separados por empresa (CNPJ): mostram o seletor de empresa. */
-const POR_UNIDADE = new Set(['orcamentos', 'wms', 'trafego']);
+const POR_UNIDADE = new Set(['orcamentos', 'wms', 'compras', 'trafego']);
 const AJUSTES = { id: 'config', nome: 'Ajustes', ic: '⚙️' };
 // telas de detalhe pertencem ao CRM
-const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms', recibo: 'wms' };
+const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms', recibo: 'wms', compra: 'compras' };
 
 function moduloDe(tela: string): string {
   return MODULOS.find((m) => m.id === tela || m.itens.some((i) => i.rota === tela))?.id ?? MODULO_DA_TELA[tela] ?? 'crm';
@@ -99,6 +103,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
   if (tela === 'orcamento' && arg) return <OrcamentoTela id={arg} rota={rota} />;
   if (tela === 'material' && arg) return <MaterialTela id={arg} />;
   if (tela === 'recibo' && arg) return <ReciboTela id={arg} />;
+  if (tela === 'compra' && arg) return <CompraTela id={arg} orcamentoId={rota.q.get('orcamento')} />;
   if (tela === 'estoque' && arg === 'importar') return <ImportarMateriais />;
 
   if (tela === 'config') return <><Topo titulo="Ajustes" /><main><Config /></main></>;
@@ -117,6 +122,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'estoque' && <Estoque />}
         {item?.rota === 'entradas' && <EntradaNfe />}
         {item?.rota === 'saidas' && <Saidas />}
+        {item?.rota === 'compras' && <Compras />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}
         {modulo.id === 'trafego' && item && <TelaMk rota={item.rota} />}
       </main>
@@ -129,6 +135,7 @@ function Telas() {
   const [tela = 'hoje', arg] = rota.partes;
   if (tela === 'imprimir' && arg) return <ImprimirOrcamento id={arg} />; // página limpa, sem menus
   if (tela === 'imprimir-recibo' && arg) return <ImprimirRecibo id={arg} />;
+  if (tela === 'imprimir-compra' && arg) return <ImprimirCompra id={arg} />;
   return (
     <div class="layout">
       <Lateral atual={moduloDe(tela)} />

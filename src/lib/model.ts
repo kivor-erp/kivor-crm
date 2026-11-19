@@ -233,6 +233,37 @@ export interface FotoMaterial {
   em: string; // ISO
 }
 
+// ---------- Compras (pedido / ordem de compra) ----------
+
+export const STATUS_COMPRA = ['Rascunho', 'Em cotação', 'Enviado', 'Recebido', 'Cancelado'] as const;
+export type StatusCompra = (typeof STATUS_COMPRA)[number];
+
+export interface ItemCompra {
+  descricao: string;
+  codigo: string; // código do fornecedor / part number
+  materialId: string | null; // item do estoque, se já existir
+  unidade: string;
+  quantidade: number;
+  valorUnitario: number; // custo; 0 enquanto em cotação
+}
+
+export interface PedidoCompra extends Registro {
+  unidadeId?: string | null;
+  numero: string; // OC-2026-0001
+  data: string; // AAAA-MM-DD
+  status: StatusCompra;
+  fornecedor: string;
+  fornecedorCnpj: string;
+  fornecedorContato: string; // telefone / e-mail / vendedor
+  itens: ItemCompra[];
+  /** Venda que originou a compra (orçamento do cliente), se houver. */
+  orcamentoId: string | null;
+  empresaId: string | null; // cliente no CRM
+  previsaoEntrega: string | null; // AAAA-MM-DD
+  condicoes: string; // pagamento, frete
+  observacao: string;
+}
+
 // ---------- Saídas (recibo) ----------
 
 export interface ItemRecibo {

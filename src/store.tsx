@@ -4,7 +4,7 @@ import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { TABELAS, definirUnidadeAtiva, lerConfig, tabela, type Dados as Tabelas } from './db';
 import { saldos } from './lib/estoque';
 import {
-  CONFIG_PADRAO, type Configuracoes, type Contato, type Empresa, type Material, type Movimento, type Orcamento, type Recibo, type Registro, type Unidade,
+  CONFIG_PADRAO, type Configuracoes, type Contato, type Empresa, type Material, type Movimento, type Orcamento, type PedidoCompra, type Recibo, type Registro, type Unidade,
 } from './lib/model';
 import { resumir, type ResumoEmpresa } from './lib/regras';
 import type { AnuncioMk, CampanhaMk, ContaMk, ConversaoMk, GrupoMk, LeadMk, MetricaMk, PalavraMk, ProdutoMk, TermoMk } from './lib/trafego/modelo';
@@ -30,6 +30,8 @@ export interface Dados {
   saldo: Map<string, number>;
   /** Recibos de saída da unidade escolhida. */
   recibos: Recibo[];
+  /** Pedidos de compra da unidade escolhida. */
+  compras: PedidoCompra[];
   unidades: Unidade[];
   unidade: Unidade | null;
   /** Registros antigos ainda sem unidade (Ajustes permite atribuir). */
@@ -46,7 +48,7 @@ export interface Dados {
 const MK_VAZIO: DadosMk = { contas: [], campanhas: [], grupos: [], palavras: [], anuncios: [], produtos: [], metricas: [], termos: [], leads: [], conversoes: [] };
 const vazio: Dados = {
   pronto: false, empresas: [], contatos: [], resumos: new Map(), config: CONFIG_PADRAO, porId: new Map(),
-  orcamentos: [], materiais: [], movimentos: [], saldo: new Map(), recibos: [], unidades: [], unidade: null, semUnidade: { materiais: 0, orcamentos: 0 },
+  orcamentos: [], materiais: [], movimentos: [], saldo: new Map(), recibos: [], compras: [], unidades: [], unidade: null, semUnidade: { materiais: 0, orcamentos: 0 },
   mk: MK_VAZIO, campanhasDeOutras: [], setUnidade: () => {},
 };
 const Ctx = createContext<Dados>(vazio);
@@ -100,6 +102,7 @@ export function DadosProvider({ children }: { children: ComponentChildren }) {
       movimentos,
       saldo: saldos(movimentos),
       recibos: daUnidade(t.recibos, uid, ha),
+      compras: daUnidade(t.compras, uid, ha),
       unidades,
       unidade,
       semUnidade: { materiais: ha ? semUnidade(t.materiais).length : 0, orcamentos: ha ? semUnidade(t.orcamentos).length : 0 },

@@ -37,7 +37,8 @@ export function Orcamentos({ rota }: { rota: Rota }) {
       </div>
       <div class="fila" style="margin:8px 0">
         <span class="peq">{lista.length} {lista.length === 1 ? 'orçamento' : 'orçamentos'}{emAberto ? ` · ${fmtMoeda(emAberto)} aguardando resposta` : ''}</span>
-        <button class="primario" style="flex:0" onClick={() => ir('orcamento/novo')}>+ Novo orçamento</button>
+        <button style="flex:0" onClick={() => ir('orcamento/novo?modelo=materiais')}>+ Orçamento de materiais</button>
+        <button class="primario" style="flex:0" onClick={() => ir('orcamento/novo')}>+ Orçamento de serviços</button>
       </div>
       {!lista.length && <div class="cartao vazio">Nenhum orçamento{status || busca ? ' com esse filtro' : ' ainda'}.</div>}
       <ul class="lista">
@@ -85,7 +86,7 @@ export function OrcamentoTela({ id, rota }: { id: string; rota: Rota }) {
     if (id !== 'novo' || criado.current || !d.pronto) return;
     criado.current = true;
     const empresa = d.porId.get(rota.q.get('empresa') ?? '');
-    const o = novoOrcamento(proximoNumero(d.orcamentos), empresa);
+    const o = novoOrcamento(proximoNumero(d.orcamentos), empresa, rota.q.get('modelo') === 'materiais' ? 'materiais' : 'servicos');
     void salvarOrcamento(o).then(() => { location.replace(`#/orcamento/${o.id}`); });
   }, [id, d.pronto]);
   if (!d.pronto || id === 'novo') return null;

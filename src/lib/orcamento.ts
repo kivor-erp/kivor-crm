@@ -131,7 +131,27 @@ export const BLOCOS: Secao[] = [
   ].join('\n') },
 ];
 
-export function novoOrcamento(numero: string, empresa?: Empresa): Orcamento {
+/** Modelo para venda de produtos (loja): sem as seções de prestação de serviço. */
+const SECOES_MATERIAIS: Secao[] = [
+  { titulo: 'Objetivo', texto: 'A presente proposta tem como objetivo o fornecimento dos materiais relacionados abaixo, conforme a especificação informada pelo cliente.' },
+  { titulo: 'Prazo de entrega', texto: 'A confirmar após a aprovação da proposta, conforme a disponibilidade do fabricante/distribuidor.' },
+  { titulo: 'Garantia', texto: 'Garantia do fabricante contra defeitos de fabricação, nas condições do fabricante.' },
+  { titulo: 'Frete e entrega', texto: 'Entrega no endereço do cliente na Grande Vitória/ES, a combinar.' },
+];
+
+export type ModeloOrcamento = 'servicos' | 'materiais';
+
+export function novoOrcamento(numero: string, empresa?: Empresa, modelo: ModeloOrcamento = 'servicos'): Orcamento {
+  const o = novoOrcamentoServicos(numero, empresa);
+  if (modelo === 'servicos') return o;
+  return {
+    ...o, subtitulo: 'Fornecimento de materiais', secoes: SECOES_MATERIAIS.map((s) => ({ ...s })),
+    itens: [{ descricao: '', unidade: 'un', quantidade: 1, valorUnitario: 0 }],
+    pagamento: 'A combinar', validadeDias: 10,
+  };
+}
+
+function novoOrcamentoServicos(numero: string, empresa?: Empresa): Orcamento {
   const agora = agoraIso();
   return {
     id: novoId(), numero, revisao: 0, data: hojeSP(), empresaId: empresa?.id ?? null,
