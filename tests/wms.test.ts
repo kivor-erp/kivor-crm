@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { novoMaterial, saldos } from '../src/lib/estoque';
-import { gtinValido, limparGtin } from '../src/lib/gtin';
+import { gtinValido, limparGtin, planejarEans } from '../src/lib/gtin';
 import { lerNfe, notaJaLancada, planejarEntradaNfe, sugerirMaterial, type DestinoItem } from '../src/lib/nfe';
 import { itemDoMaterial, movimentosDoRecibo, novoRecibo, proximoNumeroRecibo, totalRecibo, validarRecibo } from '../src/lib/recibos';
 
@@ -30,6 +30,22 @@ describe('EAN (GTIN)', () => {
     expect(gtinValido('123')).toBe(false);
     expect(limparGtin('SEM GTIN')).toBe('');
     expect(limparGtin(' 400-6381-333931 ')).toBe('4006381333931');
+  });
+});
+
+describe('importar EANs', () => {
+  it('lê CSV com ponto e vírgula sem perder dígitos e grava pelo modelo (com e sem caixa)', async () => {
+    const { lerEans } = await import('../src/lib/importarMateriais');
+    const csv = 'modelo_planilha;artigo;ean\n3RV20111FA10;3RV2011-1FA10;4006381333931\nXYZ;x;4006381333931\n3RT20161BB41;y;4006381333932\n';
+    const l = lerEans(new TextEncoder().encode(csv).buffer as ArrayBuffer);
+    expect(l.map((x) => [x.modelo, x.ean])).toEqual([['3RV20111FA10', '4006381333931'], ['XYZ', '4006381333931'], ['3RT20161BB41', '4006381333932']]);
+    const cc = novoMaterial({ modelo: '3RV2011-1FA10', embalagem: 'Com caixa' }), sc = novoMaterial({ modelo: '3RV20111FA10', embalagem: 'Sem caixa' });
+    const outro = novoMaterial({ modelo: '3RV20111FA10', ean: '96385074' });
+    const p = planejarEans([cc, sc, outro, novoMaterial({ modelo: '3RT2016-1BB41' })], l);
+    expect(p.atualizados.map((m) => [m.id, m.ean])).toEqual([[cc.id, '4006381333931'], [sc.id, '4006381333931']]);
+    expect(p.conflitos.map((c) => c.material.id)).toEqual([outro.id]);
+    expect(p.naoAchados.map((x) => x.modelo)).toEqual(['XYZ']);
+    expect(p.invalidos.map((x) => x.modelo)).toEqual(['3RT20161BB41']);
   });
 });
 

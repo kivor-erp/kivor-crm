@@ -8,7 +8,7 @@ import { EMBALAGENS, type Material, type Movimento, type TipoMovimento } from '.
 import { fmtMoeda, lerMoeda } from '../lib/regras';
 import { normalizar } from '../lib/texto';
 import { daUnidade } from '../lib/unidades';
-import { gtinValido, limparGtin } from '../lib/gtin';
+import { gtinValido, limparGtin, planejarEans, type PlanoEans } from '../lib/gtin';
 import { Fotos } from './Fotos';
 import { ir, useDados, voltar } from '../store';
 
@@ -286,6 +286,60 @@ export function Movimentacoes() {
   return <div class="cartao"><ListaMovimentos movs={movs} nomes={nomes} />{d.movimentos.length > 300 && <p class="peq">Mostrando as 300 mais recentes. A lista completa está no Excel (Ajustes › Exportar).</p>}</div>;
 }
 
+// ---------- importar EANs ----------
+
+function ImportarEans() {
+  const d = useDados();
+  const [plano, setPlano] = useState<PlanoEans<Material> | null>(null);
+  const [erro, setErro] = useState('');
+  const [feito, setFeito] = useState('');
+  async function escolher(f: File | undefined) {
+    setErro(''); setPlano(null); setFeito('');
+    if (!f) return;
+    try {
+      const { lerEans } = await import('../lib/importarMateriais');
+      const l = lerEans(await f.arrayBuffer());
+      if (!l.length) throw new Error('Nenhuma aba/arquivo com as colunas "Modelo" e "EAN".');
+      setPlano(planejarEans(d.materiais, l));
+    } catch (e) { setErro(`Não consegui ler: ${(e as Error).message}`); }
+  }
+  async function confirmar() {
+    if (!plano) return;
+    await salvar('materiais', ...plano.atualizados);
+    setFeito(`${plano.atualizados.length} itens receberam EAN.`);
+    setPlano(null);
+  }
+  return (
+    <>
+      <h2>Importar EANs</h2>
+      <div class="cartao">
+        <p style="margin-top:0" class="peq">Planilha ou CSV com as colunas <b>Modelo</b> e <b>EAN</b>. O EAN vai para todos os itens desse modelo (com e sem caixa).
+          EAN inválido é ignorado; item que já tem outro EAN não é alterado.</p>
+        <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => { const i = e.currentTarget; void escolher(i.files?.[0]).finally(() => { i.value = ''; }); }} />
+        {erro && <div class="erro">{erro}</div>}
+        {plano && (
+          <>
+            <div class="resumo-num" style="margin-top:8px">
+              <div><b>{plano.atualizados.length}</b>recebem EAN</div>
+              <div><b>{plano.iguais}</b>já iguais</div>
+              <div><b>{plano.naoAchados.length + plano.invalidos.length + plano.conflitos.length}</b>ignorados</div>
+            </div>
+            {(plano.naoAchados.length + plano.invalidos.length + plano.conflitos.length) > 0 && (
+              <details><summary>Ver ignorados</summary><ul class="peq">
+                {plano.naoAchados.map((l) => <li key={`n${l.linha}`}>Linha {l.linha}: modelo {l.modelo} não está no estoque</li>)}
+                {plano.invalidos.map((l) => <li key={`i${l.linha}`}>Linha {l.linha}: EAN {l.ean} inválido</li>)}
+                {plano.conflitos.map((c) => <li key={c.material.id}>{nomeMaterial(c.material)}: já tem {c.atual}, a planilha diz {c.novo}</li>)}
+              </ul></details>
+            )}
+            <button class="primario" style="margin-top:8px" disabled={!plano.atualizados.length} onClick={confirmar}>Gravar EANs</button>
+          </>
+        )}
+        {feito && <div class="sucesso">{feito}</div>}
+      </div>
+    </>
+  );
+}
+
 // ---------- importar planilha ----------
 
 export function ImportarMateriais() {
@@ -362,6 +416,7 @@ export function ImportarMateriais() {
           </div>
         )}
         {feito && <div class="sucesso">{feito} <button onClick={() => ir('estoque')}>Ver estoque</button></div>}
+        <ImportarEans />
       </main>
     </>
   );

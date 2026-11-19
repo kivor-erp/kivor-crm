@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { chaveMaterial } from './estoque';
+import type { EanLido } from './gtin';
 import type { Embalagem } from './model';
 import { normalizar } from './texto';
 
@@ -78,6 +79,24 @@ export function lerPlanilhaMateriais(wb: XLSX.WorkBook): MaterialLido[] {
     });
   }
   return [...porChave.values()];
+}
+
+/** Planilha/CSV com colunas Modelo e EAN (outras colunas são ignoradas). */
+export function lerEans(buf: ArrayBuffer): EanLido[] {
+  const wb = XLSX.read(buf, { type: 'array', raw: true });
+  const out: EanLido[] = [];
+  for (const nome of wb.SheetNames) {
+    const linhas = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[nome], { header: 1, defval: '', raw: false });
+    const i = linhas.slice(0, 10).findIndex((l) => l.map(normalizar).some((h) => h.startsWith('modelo')) && l.map(normalizar).some((h) => ['ean', 'gtin', 'codigo de barras'].includes(h)));
+    if (i < 0) continue;
+    const cab = linhas[i].map(normalizar);
+    const cM = cab.findIndex((h) => h.startsWith('modelo')), cE = cab.findIndex((h) => ['ean', 'gtin', 'codigo de barras'].includes(h));
+    linhas.slice(i + 1).forEach((l, k) => {
+      const modelo = String(l[cM] ?? '').trim(), ean = String(l[cE] ?? '').trim();
+      if (modelo && ean) out.push({ modelo, ean, linha: i + k + 2 });
+    });
+  }
+  return out;
 }
 
 export function lerArquivoMateriais(buf: ArrayBuffer): MaterialLido[] {
