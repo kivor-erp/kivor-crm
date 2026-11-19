@@ -233,6 +233,23 @@ export interface FotoMaterial {
   em: string; // ISO
 }
 
+// ---------- Fornecedores (comum a todas as empresas do grupo) ----------
+
+export interface Fornecedor extends Registro {
+  nome: string; // nome curto
+  razaoSocial: string;
+  cnpj: string; // só dígitos
+  cidade: string; // Cidade/UF
+  endereco: string;
+  telefone: string;
+  email: string;
+  site: string;
+  /** Tipos de equipamento/serviço que vende (ex.: "Inversores de frequência", "Resistores de frenagem"). */
+  tipos: string[];
+  marcas: string; // marcas que trabalha
+  observacao: string; // inclui de onde veio a informação e o que falta confirmar
+}
+
 // ---------- Compras (pedido / ordem de compra) ----------
 
 export const STATUS_COMPRA = ['Rascunho', 'Em cotação', 'Enviado', 'Recebido', 'Cancelado'] as const;

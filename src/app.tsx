@@ -12,7 +12,7 @@ import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
-import { CompraTela, Compras, ImprimirCompra } from './telas/Compras';
+import { CompraTela, Compras, Fornecedores, ImprimirCompra } from './telas/Compras';
 import { Registrar } from './telas/Registrar';
 import { TelaMk } from './telas/Trafego';
 import { SeletorUnidade } from './telas/Unidades';
@@ -39,6 +39,7 @@ const MODULOS = [
   // Tráfego Pago: códigos de transação MK01–MK10 nas abas
   { id: 'compras', nome: 'Compras', ic: '🛒', itens: [
     { rota: 'compras', rotulo: 'Pedidos de compra' },
+    { rota: 'fornecedores', rotulo: 'Fornecedores' },
   ] },
   { id: 'trafego', nome: 'Tráfego', ic: '📣', itens: [
     { rota: 'mk01', rotulo: 'MK01 Painel' },
@@ -123,6 +124,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'entradas' && <EntradaNfe />}
         {item?.rota === 'saidas' && <Saidas />}
         {item?.rota === 'compras' && <Compras />}
+        {item?.rota === 'fornecedores' && <Fornecedores />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}
         {modulo.id === 'trafego' && item && <TelaMk rota={item.rota} />}
       </main>

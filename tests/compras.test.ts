@@ -33,3 +33,18 @@ describe('compras', () => {
     expect(novoOrcamento('PC-2').secoes.some((s) => s.titulo === 'Escopo dos serviços')).toBe(true);
   });
 });
+
+describe('fornecedores', () => {
+  it('tipos, validação e busca por tipo de equipamento', async () => {
+    const { lerTipos, novoFornecedor, validarFornecedor, fornecedoresDoTipo } = await import('../src/lib/compras');
+    expect(lerTipos('Inversores de frequência; Motores, motores ;;')).toEqual(['Inversores de frequência', 'Motores', 'motores']);
+    const a = novoFornecedor({ nome: 'Fornecedor A', cnpj: '11222333000181', tipos: ['Inversores de frequência'], marcas: 'WEG' });
+    const b = novoFornecedor({ nome: 'Fornecedor B', tipos: ['Resistores de frenagem'] });
+    expect(validarFornecedor(novoFornecedor(), [])).toBe('Informe o nome.');
+    expect(validarFornecedor({ ...b, cnpj: '123' }, [a])).toBe('CNPJ deve ter 14 dígitos.');
+    expect(validarFornecedor({ ...b, cnpj: '11222333000181' }, [a])).toBe('Já existe um fornecedor com esse CNPJ.');
+    expect(fornecedoresDoTipo([a, b], 'frequencia').map((f) => f.nome)).toEqual(['Fornecedor A']);
+    expect(fornecedoresDoTipo([a, b], 'weg').map((f) => f.nome)).toEqual(['Fornecedor A']);
+    expect(fornecedoresDoTipo([a, b], '')).toHaveLength(2);
+  });
+});

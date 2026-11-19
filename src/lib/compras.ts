@@ -1,5 +1,5 @@
 import { hojeSP } from './datas';
-import { agoraIso, novoId, type ItemCompra, type Orcamento, type PedidoCompra } from './model';
+import { agoraIso, novoId, type Fornecedor, type ItemCompra, type Orcamento, type PedidoCompra } from './model';
 
 // Compras: pedido (ordem) de compra ao fornecedor. A entrada no estoque continua sendo
 // pelo XML da NF-e (WMS › Entrada); o pedido guarda o que foi pedido, a quem e para quê.
@@ -42,4 +42,34 @@ export function validarPedido(p: PedidoCompra): string[] {
   if (!p.itens.some((i) => i.descricao.trim())) e.push('Inclua pelo menos um item.');
   p.itens.forEach((i, k) => { if (i.descricao.trim() && !(i.quantidade > 0)) e.push(`Item ${k + 1}: quantidade inválida.`); });
   return e;
+}
+
+// ---------- fornecedores ----------
+
+export function novoFornecedor(p: Partial<Fornecedor> = {}): Fornecedor {
+  const agora = agoraIso();
+  return {
+    id: novoId(), nome: '', razaoSocial: '', cnpj: '', cidade: '', endereco: '', telefone: '', email: '', site: '', tipos: [], marcas: '',
+    observacao: '', criadoEm: agora, atualizadoEm: agora, excluidoEm: null, ...p,
+  };
+}
+
+/** "Inversores; resistores , motores" → ['Inversores', 'resistores', 'motores'] (sem vazios nem repetidos). */
+export function lerTipos(s: string): string[] {
+  return [...new Set(s.split(/[;,\n]/).map((x) => x.trim()).filter(Boolean))];
+}
+
+export function validarFornecedor(f: Fornecedor, outros: Fornecedor[]): string {
+  if (!f.nome.trim()) return 'Informe o nome.';
+  const c = f.cnpj.replace(/\D/g, '');
+  if (c && c.length !== 14) return 'CNPJ deve ter 14 dígitos.';
+  if (c && outros.some((o) => o.id !== f.id && !o.excluidoEm && o.cnpj === c)) return 'Já existe um fornecedor com esse CNPJ.';
+  return '';
+}
+
+/** Fornecedores que vendem um tipo de equipamento (busca sem acento, por parte do texto). */
+export function fornecedoresDoTipo(lista: Fornecedor[], tipo: string): Fornecedor[] {
+  const n = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const t = n(tipo.trim());
+  return lista.filter((f) => !f.excluidoEm && (!t || f.tipos.some((x) => n(x).includes(t)) || n(f.marcas).includes(t)));
 }

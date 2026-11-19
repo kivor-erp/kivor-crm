@@ -19,7 +19,7 @@ describe('restaurar backup', () => {
   const mov = novoMovimento(mat.id, 'Entrada', 10);
   const backup = {
     ...dadosVazios(), // backup de um app antigo, sem as tabelas novas: restauram como listas vazias
-    versao: 5 as const, salvoEm: '2026-11-01T10:00:00Z',
+    versao: 6 as const, salvoEm: '2026-11-01T10:00:00Z',
     empresas: [emp('a', '2026-11-01T09:00:00Z', { etapa: 3 }), emp('b', '2026-10-30T09:00:00Z')],
     contatos: [ct('c1', '2026-11-01T09:00:00Z')],
     orcamentos: [orc], materiais: [mat], movimentos: [mov],

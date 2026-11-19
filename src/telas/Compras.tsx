@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { CampoValor, Topo } from '../componentes';
 import { EMISSOR } from '../config';
 import { excluir, salvar } from '../db';
-import { novoItemCompra, novoPedidoCompra, pedidoDoOrcamento, proximoNumeroCompra, totalCompra, totalItemCompra, validarPedido } from '../lib/compras';
+import {
+  fornecedoresDoTipo, lerTipos, novoFornecedor, novoItemCompra, novoPedidoCompra, pedidoDoOrcamento, proximoNumeroCompra, totalCompra, totalItemCompra,
+  validarFornecedor, validarPedido,
+} from '../lib/compras';
 import { fmtData } from '../lib/datas';
 import { nomeMaterial } from '../lib/estoque';
-import { STATUS_COMPRA, nomeEmpresa, type PedidoCompra, type StatusCompra } from '../lib/model';
+import { STATUS_COMPRA, nomeEmpresa, type Fornecedor, type PedidoCompra, type StatusCompra } from '../lib/model';
 import { normalizar } from '../lib/texto';
 import { fmtCnpj } from '../lib/unidades';
 import { ir, useDados, voltar } from '../store';
@@ -117,7 +120,13 @@ function EditorCompra({ inicial }: { inicial: PedidoCompra }) {
             <span class="peq">{fmtData(p.data)}{orc ? ` · para o orçamento ${orc.numero} (${orc.cliente})` : ''}</span>
           </div>
           <div class="grade2">
-            {campo('fornecedor', 'Fornecedor *', 'ex.: distribuidor WEG')}
+            <div><label>Fornecedor * <a href="#/fornecedores" class="peq">(cadastro)</a></label>
+              <input list="lista-fornecedores" value={p.fornecedor} placeholder="ex.: distribuidor WEG" onInput={(e) => {
+                const nome = e.currentTarget.value;
+                const f = d.fornecedores.find((x) => x.nome === nome);
+                setP(f ? { ...p, fornecedor: f.nome, fornecedorCnpj: f.cnpj ? fmtCnpj(f.cnpj) : p.fornecedorCnpj, fornecedorContato: [f.telefone, f.email].filter(Boolean).join(' · ') || p.fornecedorContato } : { ...p, fornecedor: nome });
+              }} />
+              <datalist id="lista-fornecedores">{d.fornecedores.map((f) => <option key={f.id} value={f.nome}>{f.tipos.join(', ')}</option>)}</datalist></div>
             {campo('fornecedorCnpj', 'CNPJ do fornecedor')}
             {campo('fornecedorContato', 'Contato (vendedor, telefone, e-mail)')}
             <div><label>Previsão de entrega</label><input type="date" value={p.previsaoEntrega ?? ''} onInput={(e) => setP({ ...p, previsaoEntrega: e.currentTarget.value || null })} /></div>
@@ -210,5 +219,79 @@ export function ImprimirCompra({ id }: { id: string }) {
         </td></tr></tbody>
       </table>
     </div>
+  );
+}
+
+// ---------- fornecedores ----------
+
+export function Fornecedores() {
+  const d = useDados();
+  const [ed, setEd] = useState<Fornecedor | null>(null);
+  const [tiposTxt, setTiposTxt] = useState('');
+  const [erro, setErro] = useState('');
+  const [filtro, setFiltro] = useState('');
+  const lista = fornecedoresDoTipo(d.fornecedores, filtro);
+  const todosTipos = [...new Set(d.fornecedores.flatMap((f) => f.tipos))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const abrir = (f: Fornecedor) => { setEd(f); setTiposTxt(f.tipos.join('; ')); setErro(''); };
+
+  async function gravar() {
+    if (!ed) return;
+    const f = { ...ed, cnpj: ed.cnpj.replace(/\D/g, ''), tipos: lerTipos(tiposTxt) };
+    const e = validarFornecedor(f, d.fornecedores);
+    if (e) return setErro(e);
+    await salvar('fornecedores', f);
+    setEd(null);
+  }
+  const campo = (k: 'nome' | 'razaoSocial' | 'cnpj' | 'cidade' | 'endereco' | 'telefone' | 'email' | 'site' | 'marcas', rot: string, ph = '') => (
+    <div><label>{rot}</label><input value={ed![k]} placeholder={ph} onInput={(e) => setEd({ ...ed!, [k]: e.currentTarget.value })} /></div>
+  );
+
+  return (
+    <>
+      <div class="chips" style="margin-top:8px">
+        <button class={`chip peq ${!filtro ? 'sel' : ''}`} onClick={() => setFiltro('')}>Todos</button>
+        {todosTipos.map((t) => <button key={t} class={`chip peq ${filtro === t ? 'sel' : ''}`} onClick={() => setFiltro(filtro === t ? '' : t)}>{t}</button>)}
+      </div>
+      <div class="fila" style="margin:8px 0">
+        <span class="peq">{lista.length} fornecedores (valem para todas as empresas do grupo)</span>
+        <button class="primario" style="flex:0" onClick={() => abrir(novoFornecedor())}>+ Fornecedor</button>
+      </div>
+      {ed && (
+        <div class="cartao">
+          <div class="grade2">
+            {campo('nome', 'Nome *')}{campo('razaoSocial', 'Razão social')}
+            {campo('cnpj', 'CNPJ')}{campo('cidade', 'Cidade/UF', 'ex.: Serra/ES')}
+            {campo('endereco', 'Endereço')}{campo('telefone', 'Telefone')}
+            {campo('email', 'E-mail')}{campo('site', 'Site')}
+            {campo('marcas', 'Marcas', 'ex.: WEG, Siemens')}
+            <div><label>Tipos de equipamento que vende</label><input value={tiposTxt} placeholder="separe com ; (ex.: Inversores de frequência; Motores)" onInput={(e) => setTiposTxt(e.currentTarget.value)} /></div>
+          </div>
+          <label>Observação (fonte da informação, o que falta confirmar)</label>
+          <textarea value={ed.observacao} onInput={(e) => setEd({ ...ed, observacao: e.currentTarget.value })} />
+          {erro && <div class="erro">{erro}</div>}
+          <div class="fila" style="margin-top:8px">
+            <button class="primario" onClick={gravar}>Salvar</button>
+            <button style="flex:0" onClick={() => setEd(null)}>Cancelar</button>
+            {d.fornecedores.some((f) => f.id === ed.id) && <button class="perigo" style="flex:0" onClick={async () => { if (confirm(`Excluir ${ed.nome}?`)) { await excluir('fornecedores', ed.id); setEd(null); } }}>Excluir</button>}
+          </div>
+        </div>
+      )}
+      <div class="cartao" style="overflow-x:auto">
+        {lista.length === 0 ? <span class="peq">Nenhum fornecedor{filtro ? ' desse tipo' : ''}.</span> : (
+          <table class="tabela">
+            <thead><tr><th>Fornecedor</th><th>Cidade</th><th>Vende</th><th>Contato</th><th></th></tr></thead>
+            <tbody>{lista.map((f) => (
+              <tr key={f.id}>
+                <td>{f.nome}<div class="peq">{[f.razaoSocial, f.cnpj && fmtCnpj(f.cnpj)].filter(Boolean).join(' · ')}</div></td>
+                <td>{f.cidade}</td>
+                <td>{f.tipos.join(', ')}{f.marcas && <div class="peq">{f.marcas}</div>}</td>
+                <td>{f.telefone}<div class="peq">{[f.email, f.site].filter(Boolean).join(' · ')}</div></td>
+                <td><button onClick={() => abrir(f)}>Editar</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }

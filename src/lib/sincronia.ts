@@ -10,7 +10,7 @@ import { agoraIso, type Registro } from './model';
  * versao 2 = com orçamentos e estoque; 3 = com unidades (CNPJ) e Tráfego Pago; 4 = com recibos de saída. Versões antigas do
  * app recusam o arquivo novo (não reconhecem a versão) em vez de regravá-lo sem as tabelas novas.
  */
-export const VERSAO_ARQUIVO = 5; // 5 = com pedidos de compra
+export const VERSAO_ARQUIVO = 6; // 5 = pedidos de compra; 6 = fornecedores
 export interface ArquivoCrm extends Dados {
   versao: typeof VERSAO_ARQUIVO;
   salvoEm: string;
@@ -44,7 +44,7 @@ export function semNovidade<T extends Registro>(remoto: T[], mesclado: T[]): boo
 /** Aceita v1 (só CRM) a v4; tabelas ausentes viram listas vazias. */
 export function validarArquivo(x: unknown): ArquivoCrm {
   const a = x as Partial<Dados> & { versao?: unknown };
-  if (!a || ![1, 2, 3, 4, 5].includes(a.versao as number) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
+  if (!a || ![1, 2, 3, 4, 5, 6].includes(a.versao as number) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
     throw new Error('crm.json no OneDrive está num formato desconhecido; nada foi alterado.');
   }
   const r = { ...a, versao: VERSAO_ARQUIVO } as ArquivoCrm;
