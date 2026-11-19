@@ -10,6 +10,7 @@ import { Ficha } from './telas/Ficha';
 import { Hoje } from './telas/Hoje';
 import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
+import { Produtos } from './telas/Produtos';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
 import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
 import { CompraTela, Compras, Fornecedores, ImprimirCompra } from './telas/Compras';
@@ -32,6 +33,7 @@ const MODULOS = [
     { rota: 'orcamentos', rotulo: 'Orçamentos' },
   ] },
   { id: 'wms', nome: 'WMS', ic: '📦', itens: [
+    { rota: 'produtos', rotulo: 'Produtos' },
     { rota: 'estoque', rotulo: 'Estoque' },
     { rota: 'entradas', rotulo: 'Entrada (XML NF-e)' },
     { rota: 'saidas', rotulo: 'Saídas (recibo)' },
@@ -122,6 +124,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'empresas' && <Empresas rota={rota} />}
         {item?.rota === 'painel' && <Painel />}
         {item?.rota === 'orcamentos' && <Orcamentos rota={rota} />}
+        {item?.rota === 'produtos' && <Produtos />}
         {item?.rota === 'estoque' && <Estoque />}
         {item?.rota === 'entradas' && <EntradaNfe />}
         {item?.rota === 'saidas' && <Saidas />}

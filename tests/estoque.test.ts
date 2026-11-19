@@ -84,3 +84,25 @@ describe('estoque', () => {
     expect(p3.movimentos[0]).toMatchObject({ materialId: borne.id, tipo: 'Ajuste', quantidade: -30 });
   });
 });
+
+describe('cadastro de produtos', () => {
+  it('pendências e margem (produto pode existir sem estoque)', async () => {
+    const { pendenciasProduto, margemProduto } = await import('../src/lib/estoque');
+    const vazio = novoMaterial({ descricao: 'Inversor fictício' });
+    expect(pendenciasProduto(vazio)).toEqual(['preço de venda', 'preço de compra', 'EAN', 'foto', 'fabricante', 'modelo']);
+    const ok = novoMaterial({ descricao: 'X', fabricante: 'WEG', modelo: 'M1', ean: '4006381333931', precoVenda: 1000, precoCompra: 750,
+      fotos: [{ id: 'f', tipo: 'estudio', itemId: 'i', nome: 'n', origem: '', em: '' }] });
+    expect(pendenciasProduto(ok)).toEqual([]);
+    expect(margemProduto(ok)).toBe(0.25);
+    expect(margemProduto({ precoVenda: 1000, precoCompra: null })).toBeNull();
+  });
+
+  it('planilha da base de produtos traz saldo zero e pendências', async () => {
+    const { planilhaProdutos } = await import('../src/lib/exportar');
+    const XLSX = await import('xlsx');
+    const m = novoMaterial({ descricao: 'Resistor fictício', fabricante: 'Fab', modelo: 'R1', precoVenda: 100, precoCompra: 80 });
+    const linhas = XLSX.utils.sheet_to_json<Record<string, unknown>>(planilhaProdutos([m, { ...m, id: 'x', excluidoEm: 'agora' }], new Map()).Sheets.Produtos);
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]).toMatchObject({ 'Descrição': 'Resistor fictício', 'Saldo': 0, 'Margem %': 20, 'Falta no cadastro': 'EAN, foto' });
+  });
+});

@@ -105,3 +105,25 @@ export function planejarImportacaoMateriais(existentes: Material[], saldo: Map<s
   }
   return p;
 }
+
+// ---------- cadastro de produtos ----------
+
+export type Pendencia = 'preço de venda' | 'preço de compra' | 'EAN' | 'foto' | 'fabricante' | 'modelo';
+
+/** O que falta no cadastro do produto (para anunciar e vender). Não olha o saldo: produto pode existir sem estoque. */
+export function pendenciasProduto(m: Pick<Material, 'precoVenda' | 'precoCompra' | 'ean' | 'fotos' | 'fabricante' | 'modelo'>): Pendencia[] {
+  const p: Pendencia[] = [];
+  if (m.precoVenda === null || m.precoVenda === undefined) p.push('preço de venda');
+  if (m.precoCompra === null || m.precoCompra === undefined) p.push('preço de compra');
+  if (!m.ean) p.push('EAN');
+  if (!m.fotos?.length) p.push('foto');
+  if (!m.fabricante.trim()) p.push('fabricante');
+  if (!m.modelo.trim()) p.push('modelo');
+  return p;
+}
+
+/** Margem sobre o preço de venda (0,25 = 25%). null se faltar algum dos preços. */
+export function margemProduto(m: Pick<Material, 'precoVenda' | 'precoCompra'>): number | null {
+  if (!m.precoVenda || m.precoCompra === null || m.precoCompra === undefined) return null;
+  return (m.precoVenda - m.precoCompra) / m.precoVenda;
+}

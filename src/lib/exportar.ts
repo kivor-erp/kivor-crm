@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx';
 import { fmtData, fmtDataHora, hojeSP } from './datas';
-import { nomeEmpresa, nomeEtapa } from './model';
-import { saldos } from './estoque';
+import { nomeEmpresa, nomeEtapa, type Material } from './model';
+import { margemProduto, pendenciasProduto, saldos } from './estoque';
+import { normalizar } from './texto';
 import { totalOrcamento } from './orcamento';
 import { resumir } from './regras';
 import type { Dados } from '../db';
@@ -81,4 +82,29 @@ export function planilhaExcel(d: Pick<Dados, 'empresas' | 'contatos'> & Partial<
 export function exportarExcel(d: Dados) {
   const buf = XLSX.write(planilhaExcel(d), { type: 'array', bookType: 'xlsx' });
   baixar(`crm_sof_${hojeSP()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
+/** Base de produtos (cadastro completo) da empresa escolhida, com saldo e pendências. */
+export function planilhaProdutos(materiais: Material[], saldo: Map<string, number>): XLSX.WorkBook {
+  const linhas = [...materiais].filter((m) => !m.excluidoEm).sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR')).map((m) => {
+    const mg = margemProduto(m);
+    return {
+      'Descrição': m.descricao, 'Embalagem': m.embalagem ?? '', 'Fabricante': m.fabricante, 'Modelo': m.modelo, 'EAN': m.ean ?? '',
+      'Unidade': m.unidade, 'Local': m.local, 'Saldo': saldo.get(m.id) ?? 0, 'Estoque mínimo': m.estoqueMinimo,
+      'Preço de venda': m.precoVenda, 'Preço de compra': m.precoCompra ?? null, 'Margem %': mg === null ? null : Math.round(mg * 1000) / 10,
+      'Fotos de estúdio': (m.fotos ?? []).filter((f) => f.tipo === 'estudio').length, 'Fotos da loja': (m.fotos ?? []).filter((f) => f.tipo === 'loja').length,
+      'Falta no cadastro': pendenciasProduto(m).join(', '), 'Observações': m.observacoes, 'Cadastrado em': fmtData(m.criadoEm), 'Atualizado em': fmtData(m.atualizadoEm),
+    };
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!autofilter'] = { ref: ws['!ref'] ?? 'A1' };
+  XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+  return wb;
+}
+
+export function exportarProdutos(materiais: Material[], saldo: Map<string, number>, empresa: string) {
+  const buf = XLSX.write(planilhaProdutos(materiais, saldo), { type: 'array', bookType: 'xlsx' });
+  const nome = normalizar(empresa || 'produtos').replace(/[^a-z0-9]+/g, '_');
+  baixar(`produtos_${nome}_${hojeSP()}.xlsx`, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
