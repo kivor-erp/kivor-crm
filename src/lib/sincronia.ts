@@ -7,10 +7,10 @@ import { agoraIso, type Registro } from './model';
 // gravou no meio (412). Nada é apagado: exclusão é sempre lógica (excluidoEm).
 
 /**
- * versao 2 = com orçamentos e estoque; 3 = com unidades (CNPJ) e Tráfego Pago. Versões antigas do
+ * versao 2 = com orçamentos e estoque; 3 = com unidades (CNPJ) e Tráfego Pago; 4 = com recibos de saída. Versões antigas do
  * app recusam o arquivo novo (não reconhecem a versão) em vez de regravá-lo sem as tabelas novas.
  */
-export const VERSAO_ARQUIVO = 3;
+export const VERSAO_ARQUIVO = 4;
 export interface ArquivoCrm extends Dados {
   versao: typeof VERSAO_ARQUIVO;
   salvoEm: string;
@@ -41,10 +41,10 @@ export function semNovidade<T extends Registro>(remoto: T[], mesclado: T[]): boo
   return mesclado.every((r) => v.get(r.id) === r.atualizadoEm);
 }
 
-/** Aceita v1 (só CRM), v2 e v3; tabelas ausentes viram listas vazias. */
+/** Aceita v1 (só CRM) a v4; tabelas ausentes viram listas vazias. */
 export function validarArquivo(x: unknown): ArquivoCrm {
   const a = x as Partial<Dados> & { versao?: unknown };
-  if (!a || ![1, 2, 3].includes(a.versao as number) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
+  if (!a || ![1, 2, 3, 4].includes(a.versao as number) || !Array.isArray(a.empresas) || !Array.isArray(a.contatos)) {
     throw new Error('crm.json no OneDrive está num formato desconhecido; nada foi alterado.');
   }
   const r = { ...a, versao: VERSAO_ARQUIVO } as ArquivoCrm;

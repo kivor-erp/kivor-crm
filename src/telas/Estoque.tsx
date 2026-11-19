@@ -8,6 +8,8 @@ import { EMBALAGENS, type Material, type Movimento, type TipoMovimento } from '.
 import { fmtMoeda, lerMoeda } from '../lib/regras';
 import { normalizar } from '../lib/texto';
 import { daUnidade } from '../lib/unidades';
+import { gtinValido, limparGtin } from '../lib/gtin';
+import { Fotos } from './Fotos';
 import { ir, useDados, voltar } from '../store';
 
 const fmtQtd = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
@@ -18,9 +20,10 @@ const baixo = (m: Material, saldo: number) => saldo <= 0 || (m.estoqueMinimo !==
 /** Preço com centavos (R$ 8.045,99). Vazio quando não se sabe. */
 const fmtPreco = (v: number | null | undefined) => (v === null || v === undefined ? '' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
 
-type ColunaGrade = 'descricao' | 'embalagem' | 'fabricante' | 'modelo' | 'local' | 'saldo' | 'venda' | 'compra' | 'valor';
+type ColunaGrade = 'descricao' | 'embalagem' | 'fabricante' | 'modelo' | 'ean' | 'local' | 'saldo' | 'venda' | 'compra' | 'valor';
 const COLUNAS: { k: ColunaGrade; rot: string; num?: boolean }[] = [
   { k: 'descricao', rot: 'Descrição' }, { k: 'embalagem', rot: 'Embalagem' }, { k: 'fabricante', rot: 'Fabricante' }, { k: 'modelo', rot: 'Modelo' },
+  { k: 'ean', rot: 'EAN' },
   { k: 'local', rot: 'Local' }, { k: 'saldo', rot: 'Qtd', num: true }, { k: 'venda', rot: 'Preço venda', num: true },
   { k: 'compra', rot: 'Preço compra', num: true }, { k: 'valor', rot: 'Valor em estoque (venda)', num: true },
 ];
@@ -39,6 +42,7 @@ export function Estoque() {
       case 'compra': return m.precoCompra ?? null;
       case 'valor': return m.precoVenda === null ? null : s * m.precoVenda;
       case 'embalagem': return m.embalagem ?? '';
+      case 'ean': return m.ean ?? '';
       default: return m[k];
     }
   };
@@ -47,7 +51,7 @@ export function Estoque() {
     const dir = ordem.desc ? -1 : 1;
     return d.materiais
       .filter((m) => {
-        const alvo = normalizar(`${m.descricao} ${m.fabricante} ${m.modelo} ${m.local}`);
+        const alvo = normalizar(`${m.descricao} ${m.fabricante} ${m.modelo} ${m.local} ${m.ean ?? ''}`);
         return termos.every((t) => alvo.includes(t)) && (!soBaixo || baixo(m, d.saldo.get(m.id) ?? 0)) && (!emb || m.embalagem === emb);
       })
       .sort((a, b) => {
@@ -110,6 +114,7 @@ export function Estoque() {
                   <td>{m.embalagem || ''}</td>
                   <td>{m.fabricante}</td>
                   <td>{m.modelo}</td>
+                  <td>{m.ean ?? ''}</td>
                   <td>{m.local}</td>
                   <td style={`text-align:right;${baixo(m, s) ? 'color:var(--perigo);font-weight:600' : ''}`}>{fmtQtd(s)} {m.unidade}</td>
                   <td style="text-align:right">{fmtPreco(m.precoVenda)}</td>
@@ -121,7 +126,7 @@ export function Estoque() {
           </tbody>
           <tfoot>
             <tr style="font-weight:600">
-              <td colSpan={5}>Total ({lista.length} itens)</td>
+              <td colSpan={6}>Total ({lista.length} itens)</td>
               <td style="text-align:right">{fmtQtd(tot.qtd)}</td>
               <td></td>
               <td style="text-align:right" title="Soma só dos itens com preço de compra conhecido">{tot.compra ? fmtPreco(tot.compra) : ''}</td>
@@ -156,11 +161,14 @@ function FichaMaterial({ material }: { material: Material | null }) {
   const [erro, setErro] = useState('');
   const saldo = material ? d.saldo.get(material.id) ?? 0 : 0;
   const movs = d.movimentos.filter((v) => v.materialId === m.id).sort((a, b) => b.data.localeCompare(a.data));
-  const mudou = !material || JSON.stringify(m) !== JSON.stringify(material);
+  const semFotos = (x: Material) => JSON.stringify({ ...x, fotos: undefined, atualizadoEm: undefined });
+  const mudou = !material || semFotos(m) !== semFotos(material);
 
   async function gravar() {
     if (!m.descricao.trim()) return setErro('Informe a descrição.');
-    await salvar('materiais', m);
+    const ean = limparGtin(m.ean);
+    if (ean && !gtinValido(ean)) return setErro('EAN inválido: confira os dígitos (8, 12, 13 ou 14, com o verificador).');
+    await salvar('materiais', { ...m, ean, fotos: material?.fotos ?? m.fotos }); // fotos são gravadas pela seção Fotos
     if (!material) ir(`material/${m.id}`);
   }
 
@@ -220,6 +228,7 @@ function FichaMaterial({ material }: { material: Material | null }) {
           <div class="grade2">
             {campo('fabricante', 'Fabricante')}
             {campo('modelo', 'Modelo / código')}
+            {campo('ean', 'EAN / código de barras', '13 dígitos')}
             <div><label>Embalagem</label>
               <select value={m.embalagem ?? ''} onChange={(e) => setM({ ...m, embalagem: e.currentTarget.value as Material['embalagem'] })}>
                 <option value="">Não informada</option>
@@ -236,6 +245,8 @@ function FichaMaterial({ material }: { material: Material | null }) {
           {mudou && <button class="primario grande" style="margin-top:10px" onClick={gravar}>{material ? 'Salvar alterações' : 'Cadastrar material'}</button>}
           {material?.precoVenda !== null && material?.precoVenda !== undefined && <p class="peq">Valor do saldo: {fmtMoeda(saldo * material.precoVenda)}</p>}
         </div>
+
+        {material && <Fotos material={material} />}
 
         {material && (
           <>

@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import {
   CONFIG_PADRAO, agoraIso, novoId, type Configuracoes, type Contato, type Empresa, type Material, type Movimento,
-  type Orcamento, type Registro, type Unidade,
+  type Orcamento, type Recibo, type Registro, type Unidade,
 } from './lib/model';
 import type {
   AnuncioMk, CampanhaMk, ContaMk, ConversaoMk, GrupoMk, LeadMk, MetricaMk, PalavraMk, ProdutoMk, TermoMk,
@@ -18,6 +18,7 @@ export interface Meta { chave: string; valor: unknown }
 export const TABELAS = [
   'empresas', 'contatos', 'orcamentos', 'materiais', 'movimentos', 'unidades',
   'mkContas', 'mkCampanhas', 'mkGrupos', 'mkPalavras', 'mkAnuncios', 'mkProdutos', 'mkMetricas', 'mkTermos', 'mkLeads', 'mkConversoes',
+  'recibos',
 ] as const;
 export type NomeTabela = (typeof TABELAS)[number];
 export interface Dados {
@@ -37,6 +38,7 @@ export interface Dados {
   mkTermos: TermoMk[];
   mkLeads: LeadMk[];
   mkConversoes: ConversaoMk[];
+  recibos: Recibo[];
 }
 
 export function dadosVazios(): Dados {
@@ -70,6 +72,8 @@ class CrmDb extends Dexie {
       mkContas: mk, mkCampanhas: mk, mkGrupos: mk, mkPalavras: mk, mkAnuncios: mk, mkProdutos: mk,
       mkMetricas: mk, mkTermos: mk, mkLeads: mk, mkConversoes: mk,
     });
+    // v4: recibos de saída
+    this.version(4).stores({ recibos: mk });
   }
 }
 
@@ -91,7 +95,7 @@ function marcar<T extends { atualizadoEm: string }>(r: T, agora = agoraIso()): L
 // Unidade (CNPJ) escolhida no seletor. Material e orçamento novos nascem nela.
 let unidadeAtiva: string | null = null;
 export function definirUnidadeAtiva(id: string | null): void { unidadeAtiva = id; }
-const COM_UNIDADE: NomeTabela[] = ['materiais', 'orcamentos'];
+const COM_UNIDADE: NomeTabela[] = ['materiais', 'orcamentos', 'recibos'];
 function carimbar<T>(n: NomeTabela, r: T): T {
   const x = r as T & { unidadeId?: string | null };
   return COM_UNIDADE.includes(n) && !x.unidadeId && unidadeAtiva ? { ...x, unidadeId: unidadeAtiva } : r;

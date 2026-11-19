@@ -11,6 +11,7 @@ import { Hoje } from './telas/Hoje';
 import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
+import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
 import { Registrar } from './telas/Registrar';
 import { TelaMk } from './telas/Trafego';
 import { SeletorUnidade } from './telas/Unidades';
@@ -30,6 +31,8 @@ const MODULOS = [
   ] },
   { id: 'wms', nome: 'WMS', ic: '📦', itens: [
     { rota: 'estoque', rotulo: 'Estoque' },
+    { rota: 'entradas', rotulo: 'Entrada (XML NF-e)' },
+    { rota: 'saidas', rotulo: 'Saídas (recibo)' },
     { rota: 'movimentacoes', rotulo: 'Movimentações' },
   ] },
   // Tráfego Pago: códigos de transação MK01–MK10 nas abas
@@ -50,7 +53,7 @@ const MODULOS = [
 const POR_UNIDADE = new Set(['orcamentos', 'wms', 'trafego']);
 const AJUSTES = { id: 'config', nome: 'Ajustes', ic: '⚙️' };
 // telas de detalhe pertencem ao CRM
-const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms' };
+const MODULO_DA_TELA: Record<string, string> = { empresa: 'crm', registrar: 'crm', config: 'config', orcamento: 'orcamentos', material: 'wms', recibo: 'wms' };
 
 function moduloDe(tela: string): string {
   return MODULOS.find((m) => m.id === tela || m.itens.some((i) => i.rota === tela))?.id ?? MODULO_DA_TELA[tela] ?? 'crm';
@@ -95,6 +98,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
   if (tela === 'config' && arg === 'restaurar') return <Restaurar />;
   if (tela === 'orcamento' && arg) return <OrcamentoTela id={arg} rota={rota} />;
   if (tela === 'material' && arg) return <MaterialTela id={arg} />;
+  if (tela === 'recibo' && arg) return <ReciboTela id={arg} />;
   if (tela === 'estoque' && arg === 'importar') return <ImportarMateriais />;
 
   if (tela === 'config') return <><Topo titulo="Ajustes" /><main><Config /></main></>;
@@ -111,6 +115,8 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'painel' && <Painel />}
         {item?.rota === 'orcamentos' && <Orcamentos rota={rota} />}
         {item?.rota === 'estoque' && <Estoque />}
+        {item?.rota === 'entradas' && <EntradaNfe />}
+        {item?.rota === 'saidas' && <Saidas />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}
         {modulo.id === 'trafego' && item && <TelaMk rota={item.rota} />}
       </main>
@@ -122,6 +128,7 @@ function Telas() {
   const rota = useRota();
   const [tela = 'hoje', arg] = rota.partes;
   if (tela === 'imprimir' && arg) return <ImprimirOrcamento id={arg} />; // página limpa, sem menus
+  if (tela === 'imprimir-recibo' && arg) return <ImprimirRecibo id={arg} />;
   return (
     <div class="layout">
       <Lateral atual={moduloDe(tela)} />

@@ -94,6 +94,41 @@ export async function baixarBackup(token: string, id: string): Promise<ArquivoCr
   return validarArquivo(await c.json());
 }
 
+// ---------- anexos (XML de NF-e, fotos de produtos) ----------
+
+/** Grava um arquivo pequeno (até 4 MB) em SOF_CRM/<subpasta>/<nome>, criando as pastas. Devolve o id do item. */
+export async function guardarArquivo(token: string, subpasta: string, nome: string, conteudo: Blob | string, tipo: string): Promise<string> {
+  let pai = `root:/${PASTA}:`;
+  for (const p of subpasta.split('/').filter(Boolean)) {
+    await garantirPasta(token, p, pai);
+    pai = `${pai.slice(0, -1)}/${p}:`;
+  }
+  const url = `${DRIVE}/root:/${PASTA}/${subpasta}/${encodeURIComponent(nome)}:/content?@microsoft.graph.conflictBehavior=replace`;
+  const r = await g(token, url, { method: 'PUT', headers: { 'Content-Type': tipo }, body: conteudo });
+  if (!r.ok) await falha(r, `gravar ${nome}`);
+  return (await r.json()).id as string;
+}
+
+/** URL temporária (pré-autenticada) da miniatura de uma foto. */
+export async function urlMiniatura(token: string, itemId: string, tamanho: 'medium' | 'large' = 'medium'): Promise<string> {
+  const r = await g(token, `${DRIVE}/items/${itemId}/thumbnails/0/${tamanho}`);
+  if (!r.ok) await falha(r, 'ler miniatura');
+  return (await r.json()).url as string;
+}
+
+/** URL temporária para baixar o arquivo original. */
+export async function urlArquivo(token: string, itemId: string): Promise<string> {
+  const r = await g(token, `${DRIVE}/items/${itemId}`);
+  if (!r.ok) await falha(r, 'ler arquivo');
+  return (await r.json())['@microsoft.graph.downloadUrl'] as string;
+}
+
+/** Manda para a lixeira do OneDrive. */
+export async function apagarArquivo(token: string, itemId: string): Promise<void> {
+  const r = await g(token, `${DRIVE}/items/${itemId}`, { method: 'DELETE' });
+  if (!r.ok && r.status !== 404) await falha(r, 'apagar arquivo');
+}
+
 /** Cópia do estado atual antes de restaurar (nome fora do padrão diário: não entra na rotação de 30). */
 export async function copiaAntesDeRestaurar(token: string, dados: ArquivoCrm): Promise<string> {
   const nome = `antes_de_restaurar_${dados.salvoEm.slice(0, 19).replace(/:/g, '-')}.json`;

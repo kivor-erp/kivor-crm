@@ -520,6 +520,11 @@ function Produtos() {
           { rot: 'NF', v: (p) => (p.nf && p.nfConfirmada ? p.nf : <span style="color:var(--perigo)">{p.nf ? `${p.nf} (não confirmada)` : 'falta'}</span>) },
           { rot: 'Saldo', v: (p) => { const s = p.materialId ? d.saldo.get(p.materialId) ?? 0 : 0; return <span style={s <= 0 ? 'color:var(--perigo);font-weight:600' : ''}>{fmtN(s)}</span>; } },
           { rot: 'Preço', v: (p) => fmtReais(p.preco ?? (p.materialId ? mats.get(p.materialId)?.precoVenda ?? null : null)) },
+          { rot: 'Fotos (estúdio/loja)', v: (p) => {
+            const f = (p.materialId && mats.get(p.materialId)?.fotos) || [];
+            const e = f.filter((x) => x.tipo === 'estudio').length, l = f.length - e;
+            return <span style={!f.length ? 'color:var(--perigo)' : ''}>{e} / {l}</span>;
+          } },
           { rot: 'Anunciado', v: (p) => (p.anunciado ? 'Sim' : 'Não') },
         ]}
         campos={() => [

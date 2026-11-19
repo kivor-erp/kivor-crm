@@ -213,9 +213,48 @@ export interface Material extends Registro {
   local: string; // endereço no estoque: prateleira, caixa…
   estoqueMinimo: number | null;
   precoVenda: number | null;
-  /** Custo unitário de compra (virá do XML da NF-e de entrada). null/ausente = não se sabe. */
+  /** Custo unitário de compra (vem do XML da NF-e de entrada). null/ausente = não se sabe. */
   precoCompra?: number | null;
+  /** Código de barras GTIN/EAN (8, 12, 13 ou 14 dígitos, com dígito verificador conferido). */
+  ean?: string;
+  /** Fotos guardadas no OneDrive (SOF_CRM/fotos). Estúdio = imagem do fabricante; loja = foto tirada aqui. */
+  fotos?: FotoMaterial[];
   observacoes: string;
+}
+
+export const TIPOS_FOTO = ['estudio', 'loja'] as const;
+export type TipoFoto = (typeof TIPOS_FOTO)[number];
+export interface FotoMaterial {
+  id: string;
+  tipo: TipoFoto;
+  itemId: string; // id do arquivo no OneDrive
+  nome: string;
+  origem: string; // de onde veio (URL do fabricante), para foto de estúdio
+  em: string; // ISO
+}
+
+// ---------- Saídas (recibo) ----------
+
+export interface ItemRecibo {
+  materialId: string;
+  descricao: string;
+  modelo: string;
+  embalagem: string;
+  quantidade: number;
+  valorUnitario: number;
+}
+
+/** Saída de material com recibo. Cada item gera uma movimentação de Saída (documento = id do recibo). */
+export interface Recibo extends Registro {
+  unidadeId?: string | null;
+  numero: string; // RS-2026-0001
+  data: string; // ISO
+  cliente: string;
+  documentoCliente: string; // CPF/CNPJ
+  empresaId: string | null; // empresa do CRM, se houver
+  itens: ItemRecibo[];
+  formaPagamento: string;
+  observacao: string;
 }
 
 export const TIPOS_MOVIMENTO = ['Entrada', 'Saída', 'Ajuste'] as const;
@@ -229,4 +268,6 @@ export interface Movimento extends Registro {
   quantidade: number; // com sinal: entrada +, saída −, ajuste ±
   destino: string; // cliente/obra/fornecedor
   observacao: string;
+  /** Documento de origem: chave da NF-e de entrada ("nfe:…") ou recibo de saída ("rs:<id>"). */
+  documento?: string;
 }
