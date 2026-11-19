@@ -100,10 +100,10 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
   if (tela === 'registrar' && arg) return <Registrar empresaId={arg} contatoId={rota.q.get('contato')} />;
   if (tela === 'config' && arg === 'importar') return <Importar />;
   if (tela === 'config' && arg === 'restaurar') return <Restaurar />;
-  if (tela === 'orcamento' && arg) return <OrcamentoTela id={arg} rota={rota} />;
+  if (tela === 'orcamento' && arg) return <OrcamentoTela key={arg} id={arg} rota={rota} />;
   if (tela === 'material' && arg) return <MaterialTela id={arg} />;
   if (tela === 'recibo' && arg) return <ReciboTela id={arg} />;
-  if (tela === 'compra' && arg) return <CompraTela id={arg} orcamentoId={rota.q.get('orcamento')} />;
+  if (tela === 'compra' && arg) return <CompraTela key={arg} id={arg} orcamentoId={rota.q.get('orcamento')} />;
   if (tela === 'estoque' && arg === 'importar') return <ImportarMateriais />;
 
   if (tela === 'config') return <><Topo titulo="Ajustes" /><main><Config /></main></>;
