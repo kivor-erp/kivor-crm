@@ -293,7 +293,8 @@ export interface PedidoCompra extends Registro {
 
 // ---------- Mapa de preços (cotações recebidas de fornecedores) ----------
 
-export const STATUS_PRECO = ['Cotado', 'Comprado', 'Descartado'] as const;
+/** Aguardando = cotação pedida e ainda sem resposta (sem preço): aparece no mapa, mas não entra em nenhuma comparação. */
+export const STATUS_PRECO = ['Aguardando', 'Cotado', 'Comprado', 'Descartado'] as const;
 export type StatusPreco = (typeof STATUS_PRECO)[number];
 export const TIPOS_FRETE = ['', 'FOB', 'CIF'] as const;
 export type TipoFrete = (typeof TIPOS_FRETE)[number];
@@ -334,6 +335,8 @@ export interface PrecoCotado extends Registro {
   prazoDias: number | null; // prazo de entrega informado
   status: StatusPreco;
   observacao: string;
+  /** Para quem/qual obra se cota (ex.: "BNG – pontes rolantes"): permite ver tudo de uma demanda junto. */
+  demanda?: string;
 }
 
 // ---------- Saídas (recibo) ----------

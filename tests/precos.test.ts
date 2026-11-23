@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { novoMaterial } from '../src/lib/estoque';
 import {
   custoTotal, custoUnitario, dicaDeCompra, ipiUnitario, lerCargaPrecos, mapaDePrecos, margemLiquida, nivelVenda, novoPreco, pedidoDaOferta,
-  planejarCargaPrecos, precoPiso, precoSugerido, situacaoValidade, valeAinda, prepararConferencia, conferirItemVenda,
+  planejarCargaPrecos, precoPiso, precoSugerido, situacaoValidade, valeAinda, prepararConferencia, conferirItemVenda, esperandoResposta, temPreco,
 } from '../src/lib/precos';
 
 // Dados fictícios (valores no formato de uma proposta real: líquido sem IPI, IPI por fora).
@@ -191,5 +191,42 @@ describe('conferência do item do orçamento', () => {
     expect(conferirItemVenda(c, '3RT20381AN20', 2000)).toMatchObject({ origem: 'cotacao', custo: 1000 });
     const v = prepararConferencia([inv({ modelo: 'ABCD-1234', validade: '2026-11-01' })], [], venda, HOJE);
     expect(conferirItemVenda(v, 'ABCD-1234', 9000)).toMatchObject({ origem: 'vencida' });
+  });
+});
+
+describe('cotações aguardando resposta', () => {
+  const espera = (extra = {}) => novoPreco({ status: 'Aguardando', fornecedor: 'Fornecedor X', descricao: 'Resistor de frenagem 8 kW 22 ohms', data: '2026-11-20', demanda: 'BNG – pontes rolantes', ...extra });
+
+  it('não tem preço, não vale como cotação e não vira "melhor"', () => {
+    const p = espera();
+    expect(temPreco(p)).toBe(false);
+    expect(valeAinda(p, HOJE)).toBe(false);
+    const g = mapaDePrecos([p], HOJE);
+    expect(g).toHaveLength(1);
+    expect(g[0]).toMatchObject({ melhor: null, vigentes: 0, aguardando: 1, demandas: ['BNG – pontes rolantes'] });
+  });
+  it('convive com a resposta de outro fornecedor: o melhor é só quem respondeu', () => {
+    const resp = inv({ modelo: 'RES-8K', descricao: 'Resistor de frenagem 8 kW 22 ohms', fornecedor: 'Respondeu', precoUnitario: 2000, ipiPct: 0 });
+    const g = mapaDePrecos([espera({ modelo: 'RES-8K' }), resp], HOJE);
+    expect(g).toHaveLength(1);
+    expect(g[0].melhor?.fornecedor).toBe('Respondeu');
+    expect(g[0].ofertas.map((o) => o.fornecedor)).toEqual(['Respondeu', 'Fornecedor X']); // vigentes, depois quem falta responder
+    expect(g[0]).toMatchObject({ vigentes: 1, aguardando: 1 });
+  });
+  it('não entra na conferência de pedido nem de orçamento', () => {
+    expect(dicaDeCompra([espera({ modelo: 'RES-8K' })], 'RES-8K', 'Fornecedor X', 100, HOJE).nivel).toBe('sem-cotacao');
+    const c = prepararConferencia([espera({ modelo: 'RES-8K' })], [], { margemAlvo: 0.25, impostoVenda: 0 }, HOJE);
+    expect(conferirItemVenda(c, 'Resistor RES-8K 8 kW', 3000)).toBeNull();
+  });
+  it('lista quem demora mais primeiro', () => {
+    const l = esperandoResposta([espera({ fornecedor: 'B', data: '2026-11-22' }), espera({ fornecedor: 'A', data: '2026-11-18' }), inv()], HOJE);
+    expect(l.map((x) => [x.preco.fornecedor, x.dias])).toEqual([['A', 5], ['B', 1]]);
+  });
+  it('a carga aceita pedido sem preço quando está aguardando, e recusa sem preço quando não está', () => {
+    const base = { descricao: 'Resistor', fornecedor: 'F', data: '2026-11-20' };
+    const p = planejarCargaPrecos([], lerCargaPrecos(JSON.stringify([{ ...base, status: 'Aguardando', demanda: 'BNG' }, { ...base, fornecedor: 'G' }])).carga!);
+    expect(p.novos).toHaveLength(1);
+    expect(p.novos[0]).toMatchObject({ status: 'Aguardando', demanda: 'BNG', precoUnitario: 0 });
+    expect(p.avisos).toHaveLength(1);
   });
 });

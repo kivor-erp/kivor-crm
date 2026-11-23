@@ -54,7 +54,16 @@ export function situacaoValidade(p: Pick<PrecoCotado, 'validade'>, hoje = hojeSP
 }
 
 /** Cotação que ainda serve para decidir: não descartada e não vencida. */
-export const valeAinda = (p: PrecoCotado, hoje = hojeSP()): boolean => p.status !== 'Descartado' && situacaoValidade(p, hoje).situacao !== 'vencida';
+export const valeAinda = (p: PrecoCotado, hoje = hojeSP()): boolean => p.status !== 'Descartado' && p.status !== 'Aguardando' && situacaoValidade(p, hoje).situacao !== 'vencida';
+
+/** Preço de verdade: exclui o pedido de cotação ainda sem resposta (que não tem valor). */
+export const temPreco = (p: Pick<PrecoCotado, 'status'>): boolean => p.status !== 'Aguardando';
+
+/** Pedidos de cotação sem resposta, do mais antigo (mais atrasado) ao mais novo. */
+export function esperandoResposta(precos: PrecoCotado[], hoje = hojeSP()): { preco: PrecoCotado; dias: number }[] {
+  return precos.filter((p) => !p.excluidoEm && p.status === 'Aguardando').map((p) => ({ preco: p, dias: Math.max(0, diffDias(p.data, hoje)) }))
+    .sort((a, b) => b.dias - a.dias || a.preco.fornecedor.localeCompare(b.preco.fornecedor, 'pt-BR'));
+}
 
 // ---------- mapa (agrupado por produto) ----------
 
@@ -64,11 +73,15 @@ export interface GrupoPreco {
   descricao: string;
   fabricante: string;
   materialId: string | null;
-  /** Vigentes primeiro (do menor custo ao maior); depois vencidas e descartadas (mais recentes antes). */
+  /** Vigentes primeiro (do menor custo ao maior); depois as aguardando resposta; por fim vencidas e descartadas (mais recentes antes). */
   ofertas: PrecoCotado[];
   /** Menor custo entre as vigentes. */
   melhor: PrecoCotado | null;
   vigentes: number;
+  /** Pedidos de cotação ainda sem resposta. */
+  aguardando: number;
+  /** Demandas (obra/cliente) a que as cotações do produto se ligam. */
+  demandas: string[];
 }
 
 export function mapaDePrecos(precos: PrecoCotado[], hoje = hojeSP(), o: OpcoesCusto = {}): GrupoPreco[] {
@@ -77,12 +90,16 @@ export function mapaDePrecos(precos: PrecoCotado[], hoje = hojeSP(), o: OpcoesCu
   const grupos: GrupoPreco[] = [];
   for (const [chave, lista] of por) {
     const vigentes = lista.filter((p) => valeAinda(p, hoje)).sort((a, b) => custoUnitario(a, o) - custoUnitario(b, o) || b.data.localeCompare(a.data));
-    const resto = lista.filter((p) => !valeAinda(p, hoje)).sort((a, b) => b.data.localeCompare(a.data));
-    const recente = [...lista].sort((a, b) => b.data.localeCompare(a.data))[0];
+    const espera = lista.filter((p) => p.status === 'Aguardando').sort((a, b) => a.data.localeCompare(b.data));
+    const resto = lista.filter((p) => !valeAinda(p, hoje) && p.status !== 'Aguardando').sort((a, b) => b.data.localeCompare(a.data));
+    // descrição e modelo vêm da cotação mais recente que os tenha (o pedido sem resposta pode ter só o texto digitado)
+    const recente = [...lista].sort((a, b) => b.data.localeCompare(a.data));
+    const r = recente.find((p) => p.modelo && p.descricao) ?? recente.find((p) => p.modelo) ?? recente[0];
     grupos.push({
-      chave, modelo: recente.modelo, descricao: recente.descricao, fabricante: recente.fabricante,
+      chave, modelo: r.modelo, descricao: r.descricao || recente.find((p) => p.descricao)?.descricao || '', fabricante: recente.find((p) => p.fabricante)?.fabricante ?? '',
       materialId: lista.find((p) => p.materialId)?.materialId ?? null,
-      ofertas: [...vigentes, ...resto], melhor: vigentes[0] ?? null, vigentes: vigentes.length,
+      ofertas: [...vigentes, ...espera, ...resto], melhor: vigentes[0] ?? null, vigentes: vigentes.length, aguardando: espera.length,
+      demandas: [...new Set(lista.map((p) => p.demanda?.trim()).filter((x): x is string => !!x))],
     });
   }
   return grupos.sort((a, b) => (a.fabricante || '').localeCompare(b.fabricante || '', 'pt-BR') || a.modelo.localeCompare(b.modelo, 'pt-BR'));
@@ -141,7 +158,7 @@ const fmtD = (iso: string) => iso.split('-').reverse().join('/');
 /** Confere o valor digitado no pedido (preço líquido, como na proposta) com as cotações do mapa para aquele modelo. */
 export function dicaDeCompra(precos: PrecoCotado[], modelo: string, fornecedor: string, valorUnitario: number, hoje = hojeSP(), o: OpcoesCusto = {}): DicaCompra {
   const k = chaveModelo(modelo);
-  const doItem = k ? precos.filter((p) => !p.excluidoEm && p.status !== 'Descartado' && (chaveModelo(p.modelo) === k || chaveModelo(p.codigoFornecedor) === k)) : [];
+  const doItem = k ? precos.filter((p) => !p.excluidoEm && p.status !== 'Descartado' && temPreco(p) && (chaveModelo(p.modelo) === k || chaveModelo(p.codigoFornecedor) === k)) : [];
   const vigentes = doItem.filter((p) => valeAinda(p, hoje)).sort((a, b) => custoUnitario(a, o) - custoUnitario(b, o));
   const melhor = vigentes[0] ?? null;
   if (!melhor) {
@@ -189,7 +206,7 @@ export interface RegistroPreco {
   modelo?: string; codigoFornecedor?: string; descricao?: string; fabricante?: string; ncm?: string;
   fornecedor?: string; faturadoPor?: string; oferta?: string; data?: string; validade?: string | null;
   quantidade?: number; unidade?: string; precoUnitario?: number; icmsPct?: number | null; ipiPct?: number; stUnitario?: number;
-  freteTipo?: string; freteUnitario?: number; pagamento?: string; prazoDias?: number | null; status?: string; observacao?: string;
+  freteTipo?: string; freteUnitario?: number; pagamento?: string; prazoDias?: number | null; status?: string; observacao?: string; demanda?: string;
 }
 export interface CargaPrecos { versao: 1; precos: RegistroPreco[] }
 export interface PlanoPrecos { novos: PrecoCotado[]; iguais: number; avisos: string[] }
@@ -217,12 +234,12 @@ export function planejarCargaPrecos(existentes: PrecoCotado[], carga: CargaPreco
     const rot = `Registro ${i + 1}${r?.modelo ? ` (${r.modelo})` : ''}`;
     if (!r || (!r.modelo?.trim() && !r.descricao?.trim())) return void plano.avisos.push(`${rot}: sem modelo nem descrição, ignorado.`);
     if (!r.fornecedor?.trim()) return void plano.avisos.push(`${rot}: sem fornecedor, ignorado.`);
-    if (!(num(r.precoUnitario) > 0)) return void plano.avisos.push(`${rot}: preço unitário inválido, ignorado.`);
+    if (r.status !== 'Aguardando' && !(num(r.precoUnitario) > 0)) return void plano.avisos.push(`${rot}: preço unitário inválido, ignorado.`);
     const data = ymd(r.data);
     if (!data) return void plano.avisos.push(`${rot}: data inválida (use AAAA-MM-DD), ignorado.`);
     if (r.validade && !ymd(r.validade)) plano.avisos.push(`${rot}: validade inválida (use AAAA-MM-DD); importado sem validade.`);
     const frete = (['FOB', 'CIF'] as const).find((t) => t === String(r.freteTipo ?? '').toUpperCase()) ?? '';
-    const status = (['Cotado', 'Comprado', 'Descartado'] as const).find((s) => s === r.status) ?? 'Cotado';
+    const status = (['Aguardando', 'Cotado', 'Comprado', 'Descartado'] as const).find((s) => s === r.status) ?? 'Cotado';
     const p = novoPreco({
       modelo: (r.modelo ?? '').trim(), codigoFornecedor: (r.codigoFornecedor ?? '').trim(), descricao: (r.descricao ?? '').trim(),
       fabricante: (r.fabricante ?? '').trim(), ncm: (r.ncm ?? '').trim(), fornecedor: r.fornecedor.trim(), faturadoPor: (r.faturadoPor ?? '').trim(),
@@ -230,7 +247,7 @@ export function planejarCargaPrecos(existentes: PrecoCotado[], carga: CargaPreco
       unidade: (r.unidade ?? 'un').trim() || 'un', precoUnitario: num(r.precoUnitario), icmsPct: typeof r.icmsPct === 'number' ? r.icmsPct : null,
       ipiPct: num(r.ipiPct), stUnitario: num(r.stUnitario), freteTipo: frete as TipoFrete, freteUnitario: num(r.freteUnitario),
       pagamento: (r.pagamento ?? '').trim(), prazoDias: typeof r.prazoDias === 'number' ? r.prazoDias : null, status: status as StatusPreco,
-      observacao: (r.observacao ?? '').trim(), materialId: porModelo.get(chaveModelo(r.modelo ?? '')) ?? null,
+      observacao: (r.observacao ?? '').trim(), demanda: (r.demanda ?? '').trim(), materialId: porModelo.get(chaveModelo(r.modelo ?? '')) ?? null,
     });
     const k = chaveOferta(p);
     if (vistos.has(k)) { plano.iguais++; return; }
@@ -294,7 +311,7 @@ export function prepararConferencia(precos: PrecoCotado[], materiais: Pick<Mater
     if (k.length < MIN_MODELO) continue;
     if (g.melhor) custos.set(k, { custo: custoUnitario(g.melhor, o), origem: 'cotacao', fonte: `cotação ${g.melhor.fornecedor}${g.melhor.validade ? ` até ${fmtD(g.melhor.validade)}` : ''}`, modelo: g.modelo });
     else if (!custos.has(k)) {
-      const v = g.ofertas.find((x) => x.status !== 'Descartado');
+      const v = g.ofertas.find((x) => x.status !== 'Descartado' && temPreco(x));
       if (v) custos.set(k, { custo: custoUnitario(v, o), origem: 'vencida', fonte: `cotação vencida de ${v.fornecedor} (${fmtD(v.validade ?? v.data)})`, modelo: g.modelo });
     }
   }

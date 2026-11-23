@@ -5,6 +5,7 @@ import { salvar } from '../db';
 import { recomendarFornecedores } from '../lib/buscaFornecedor';
 import { proximoNumeroCompra } from '../lib/compras';
 import { emailCotacao, gerarCotacao, itemCotacaoVazio, linkEmail, linkWhatsApp, pedidoDeCotacao, telefoneWhatsApp, type Canal, type Emissor, type ItemCotacao } from '../lib/cotacao';
+import { novoPreco } from '../lib/precos';
 import { fmtCnpj } from '../lib/unidades';
 import { ir, useDados } from '../store';
 
@@ -42,6 +43,11 @@ export function Cotacao() {
     if (!f) return;
     const numero = proximoNumeroCompra([...d.compras, ...Object.values(registrados).map((n) => ({ numero: n }))]);
     await salvar('compras', pedidoDeCotacao(numero, itens, f, obs));
+    // cada item pedido aparece no Mapa de preços como "Aguardando resposta" até o preço chegar
+    await salvar('precos', ...prontos.map((i) => novoPreco({
+      status: 'Aguardando', fornecedor: f.nome, modelo: (i.referencia ?? '').trim(), descricao: [i.descricao.trim(), i.especificacao.trim()].filter(Boolean).join(' – '),
+      quantidade: i.quantidade && i.quantidade > 0 ? i.quantidade : 1, unidade: i.unidade || 'un', demanda: obs.trim(), observacao: `Cotação ${numero} enviada pelo módulo de cotação.`,
+    })));
     setRegistrados({ ...registrados, [id]: numero });
   }
   async function copiar(t: string) {
@@ -138,7 +144,7 @@ export function Cotacao() {
               : <a class="botao" style="flex:0;white-space:nowrap" href={linkEmail(f, assunto, texto)}>{temMail ? 'Abrir e-mail' : 'Abrir e-mail (sem endereço)'}</a>}
             {registrados[f.id]
               ? <button style="flex:0;white-space:nowrap" onClick={() => ir('compras')}>Registrado: {registrados[f.id]}</button>
-              : <button style="flex:0;white-space:nowrap" onClick={() => registrar(f.id)}>Registrar como pedido em cotação</button>}
+              : <button style="flex:0;white-space:nowrap" title="Cria o pedido em cotação e deixa o item aguardando resposta no Mapa de preços" onClick={() => registrar(f.id)}>Registrar como pedido em cotação</button>}
           </div>
         );
       })}
