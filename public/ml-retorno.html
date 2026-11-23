@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>KIVOR · Retorno do Mercado Livre</title>
+</head>
+<body style="font:16px system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem">
+<!--
+  O Mercado Livre exige um endereço de retorno HTTPS. Esta página estática só repassa, no seu próprio
+  navegador, o resultado da autorização para o ajudante que roda neste computador (localhost).
+  Nada é enviado a servidor algum e esta página não guarda nada.
+-->
+<p id="msg">Voltando ao KIVOR…</p>
+<script>
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var code = p.get('code'), state = p.get('state');
+    if (!code || !state) {
+      document.getElementById('msg').textContent = 'Retorno sem código de autorização. Volte ao KIVOR e clique em Conectar de novo.';
+      return;
+    }
+    // destino fixo: só o ajudante local, nunca um endereço vindo da URL
+    location.replace('http://localhost:5198/ml/retorno?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state));
+  })();
+</script>
+</body>
+</html>

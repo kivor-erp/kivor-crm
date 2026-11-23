@@ -21,6 +21,7 @@ import { Cotacao } from './telas/Cotacao';
 import { Registrar } from './telas/Registrar';
 import { TelaMk } from './telas/Trafego';
 import { SeletorUnidade } from './telas/Unidades';
+import { TelaMl } from './telas/MercadoLivre';
 
 // Só no `npm run dev` (nunca no site publicado): ?semlogin abre sem Microsoft e sem sincronizar, para testes automáticos de tela.
 const SEM_LOGIN = import.meta.env.DEV && new URLSearchParams(location.search).has('semlogin');
@@ -51,6 +52,12 @@ const MODULOS = [
     { rota: 'precos', rotulo: 'Mapa de preços' },
     { rota: 'compras', rotulo: 'Pedidos de compra' },
     { rota: 'fornecedores', rotulo: 'Fornecedores' },
+  ] },
+  { id: 'ml', nome: 'Mercado Livre', ic: '🛍️', itens: [
+    { rota: 'ml01', rotulo: 'ML01 Pedidos' },
+    { rota: 'ml02', rotulo: 'ML02 Anúncios' },
+    { rota: 'ml04', rotulo: 'ML04 Tráfego' },
+    { rota: 'ml03', rotulo: 'ML03 Conexão' },
   ] },
   { id: 'trafego', nome: 'Tráfego', ic: '📣', itens: [
     { rota: 'mk01', rotulo: 'MK01 Painel' },
@@ -144,6 +151,7 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'fornecedores' && <Fornecedores />}
         {item?.rota === 'movimentacoes' && <Movimentacoes />}
         {modulo.id === 'trafego' && item && <TelaMk rota={item.rota} />}
+        {modulo.id === 'ml' && item && <TelaMl rota={item.rota} />}
       </main>
     </>
   );

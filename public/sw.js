@@ -27,6 +27,8 @@ self.addEventListener('activate', (ev) => {
 self.addEventListener('fetch', (ev) => {
   const req = ev.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  // retorno do Mercado Livre: página à parte, não pode entrar no cache do app (cairia no lugar de './')
+  if (new URL(req.url).pathname.endsWith('/ml-retorno.html')) return;
   if (req.mode === 'navigate') {
     // página: tenta a rede (versão nova), cai no cache se estiver offline
     ev.respondWith(fetch(req).then((r) => {
