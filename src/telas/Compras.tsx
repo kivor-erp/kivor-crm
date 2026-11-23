@@ -46,7 +46,7 @@ export function Compras() {
         <span class="peq">{lista.length} pedidos{abertos ? ` · ${fmtR(abertos)} em aberto` : ''}</span>
         <select style="max-width:280px" value={orc} onChange={(e) => setOrc(e.currentTarget.value)}>
           <option value="">A partir de um orçamento…</option>
-          {d.orcamentos.filter((o) => o.status !== 'Recusado').map((o) => <option key={o.id} value={o.id}>{o.numero} · {o.cliente}</option>)}
+          {d.orcamentos.filter((o) => o.status !== 'Perdido').map((o) => <option key={o.id} value={o.id}>{o.numero} · {o.cliente}</option>)}
         </select>
         <button style="flex:0" disabled={!orc} onClick={() => ir(`compra/novo?orcamento=${orc}`)}>Gerar pedido</button>
         <button class="primario" style="flex:0" onClick={() => ir('compra/novo')}>+ Pedido de compra</button>

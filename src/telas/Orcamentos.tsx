@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Topo } from '../componentes';
 import { EMISSOR as EMISSOR_PADRAO } from '../config';
 import { fmtCnpj } from '../lib/unidades';
-import { excluir, salvarOrcamento } from '../db';
+import { excluir, salvarContato, salvarEmpresa, salvarOrcamento } from '../db';
+import { CFTV } from '../lib/calc/cftv';
+import { catalogoCalculadoras, lerCargaObra, novoOrcamentoCalc, planejarCargaObra, type PlanoObra } from '../lib/calc/orcamentoCalc';
+import { ImprimirObra, ObraEditor, classeStatus } from './OrcamentoObra';
 import { fmtData } from '../lib/datas';
 import { nomeEmpresa, STATUS_ORCAMENTO, type ItemOrcamento, type Orcamento, type Secao, type StatusOrcamento } from '../lib/model';
 import { BLOCOS, blocosTexto, copiar, mudarStatus, novoOrcamento, porExtenso, proximoNumero, totalItem, totalOrcamento } from '../lib/orcamento';
@@ -36,8 +39,13 @@ export function Orcamentos({ rota }: { rota: Rota }) {
           <button key={s} class={`chip peq ${status === s ? 'sel' : ''}`} onClick={() => setStatus(status === s ? '' : s)}>{s}</button>
         ))}
       </div>
+      <ImportarObra />
       <div class="fila" style="margin:8px 0">
         <span class="peq">{lista.length} {lista.length === 1 ? 'orçamento' : 'orçamentos'}{emAberto ? ` · ${fmtMoeda(emAberto)} aguardando resposta` : ''}</span>
+        <select style="flex:0 0 auto;width:auto" value="" onChange={(e) => { if (e.currentTarget.value) ir(`orcamento/novo?calc=${encodeURIComponent(e.currentTarget.value)}`); }}>
+          <option value="">+ Orçamento com calculadora…</option>
+          {catalogoCalculadoras(d.calculadoras).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
         <button style="flex:0" onClick={() => ir('orcamento/novo?modelo=materiais')}>+ Orçamento de materiais</button>
         <button class="primario" style="flex:0" onClick={() => ir('orcamento/novo')}>+ Orçamento de serviços</button>
       </div>
@@ -50,11 +58,11 @@ export function Orcamentos({ rota }: { rota: Rota }) {
                 <div>
                   <div class="nome">{o.cliente || '(sem cliente)'}</div>
                   <div class="sub">{o.numero} · {rev(o)} · {fmtData(o.data)}</div>
-                  <div class="peq">{[o.titulo, o.subtitulo].filter(Boolean).join(' – ')}</div>
+                  <div class="peq">{[o.titulo, o.subtitulo].filter(Boolean).join(' – ')}{o.calc && ` · ${resumoCalc(o)}`}</div>
                 </div>
                 <div style="text-align:right;flex:0;white-space:nowrap">
-                  <span class={`selo status-${o.status}`}>{o.status}</span>
-                  <div style="font-weight:700;margin-top:6px">{fmtMoeda(totalOrcamento(o)) || 'R$ 0'}</div>
+                  <span class={`selo status-${classeStatus(o.status)}`}>{o.status}</span>
+                  <div style="font-weight:700;margin-top:6px">{o.calc && !o.calc.resultado ? 'sem preço' : fmtMoeda(totalOrcamento(o)) || 'R$ 0'}</div>
                 </div>
               </div>
             </a>
@@ -86,13 +94,18 @@ export function OrcamentoTela({ id, rota }: { id: string; rota: Rota }) {
   useEffect(() => {
     if (id !== 'novo' || criado.current || !d.pronto) return;
     criado.current = true;
-    const empresa = d.porId.get(rota.q.get('empresa') ?? '');
-    const o = novoOrcamento(proximoNumero(d.orcamentos), empresa, rota.q.get('modelo') === 'materiais' ? 'materiais' : 'servicos');
+    // lê os parâmetros do endereço na hora de criar (não de uma renderização anterior)
+    const q = new URLSearchParams(location.hash.split('?')[1] ?? '');
+    const empresa = d.porId.get(q.get('empresa') ?? '');
+    const idCalc = q.get('calc');
+    const def = idCalc ? catalogoCalculadoras(d.calculadoras).find((c) => c.id === idCalc) ?? CFTV : null;
+    const o = def ? novoOrcamentoCalc(proximoNumero(d.orcamentos), empresa, def) : novoOrcamento(proximoNumero(d.orcamentos), empresa, q.get('modelo') === 'materiais' ? 'materiais' : 'servicos');
     void salvarOrcamento(o).then(() => { location.replace(`#/orcamento/${o.id}`); });
   }, [id, d.pronto]);
   if (!d.pronto || id === 'novo') return null;
   const o = d.orcamentos.find((x) => x.id === id);
   if (!o) return <><Topo titulo="Orçamento" voltar={() => voltar('orcamentos')} /><main><div class="vazio">Orçamento não encontrado.</div></main></>;
+  if (o.calc) return <ObraEditor key={o.id} inicial={o} />;
   return <Editor key={o.id} inicial={o} />;
 }
 
@@ -136,7 +149,7 @@ function Editor({ inicial }: { inicial: Orcamento }) {
 
   async function aplicarStatus(s: StatusOrcamento) {
     let motivo = '';
-    if (s === 'Recusado') {
+    if (s === 'Perdido') {
       const m = prompt('Motivo da recusa (vai para o CRM):', '');
       if (m === null) return;
       motivo = m.trim();
@@ -166,19 +179,19 @@ function Editor({ inicial }: { inicial: Orcamento }) {
       <main>
         <div class="cartao">
           <div class="fila">
-            <span class={`selo status-${o.status}`} style="flex:0">{o.status}</span>
+            <span class={`selo status-${classeStatus(o.status)}`} style="flex:0">{o.status}</span>
             <b style="flex:0;white-space:nowrap">{fmtValor(total)}</b>
           </div>
           {msg && <div class="sucesso">{msg}</div>}
           <div class="fila" style="margin-top:10px">
             {o.status === 'Rascunho' && <button class="primario" onClick={() => aplicarStatus('Enviado')}>Marcar como enviado</button>}
             {o.status === 'Enviado' && <button class="primario" onClick={() => aplicarStatus('Aprovado')}>Aprovado</button>}
-            {o.status === 'Enviado' && <button onClick={() => aplicarStatus('Recusado')}>Recusado</button>}
+            {o.status === 'Enviado' && <button onClick={() => aplicarStatus('Perdido')}>Perdido</button>}
             {travado && <button onClick={novaRevisao}>Nova revisão</button>}
             <button onClick={() => { if (pendente.current) void salvarOrcamento(pendente.current); ir(`imprimir/${o.id}`); }}>🖨 Imprimir / PDF</button>
           </div>
           {travado && <p class="peq">Orçamento {o.status.toLowerCase()}: para alterar, crie uma nova revisão.</p>}
-          {o.status === 'Recusado' && o.motivoRecusa && <p class="peq">Motivo: {o.motivoRecusa}</p>}
+          {o.status === 'Perdido' && o.motivoRecusa && <p class="peq">Motivo: {o.motivoRecusa}</p>}
         </div>
 
         <fieldset disabled={travado} class="sem-borda">
@@ -282,7 +295,15 @@ function Texto({ texto }: { texto: string }) {
   ))}</>;
 }
 
+/** Página limpa de impressão: orçamento com calculadora imprime um documento por CNPJ; a proposta simples segue o modelo antigo. */
 export function ImprimirOrcamento({ id }: { id: string }) {
+  const d = useDados();
+  const o = d.orcamentos.find((x) => x.id === id);
+  if (o?.calc) return <ImprimirObra o={o} />;
+  return <ImprimirSimples id={id} />;
+}
+
+function ImprimirSimples({ id }: { id: string }) {
   const d = useDados();
   const o = d.orcamentos.find((x) => x.id === id);
   useEffect(() => { document.title = o ? `${o.numero} ${rev(o)} – ${o.cliente}` : 'Proposta'; return () => { document.title = 'KIVOR-CRM'; }; }, [o?.id]);
@@ -389,5 +410,58 @@ function ConferenciaVenda({ r }: { r: ReturnType<typeof conferirItemVenda> }) {
       {r.piso !== null && <> · mínimo {fmtValor(r.piso)}</>}
       {r.sugerido !== null && <> · sugerido {fmtValor(r.sugerido)}</>}
     </div>
+  );
+}
+
+/** Linha de resumo de um orçamento com calculadora, na lista. */
+function resumoCalc(o: Orcamento): string {
+  const c = o.calc!;
+  const abertas = c.pendencias.filter((p) => !p.resolvida).length;
+  return `${c.pendencias.length ? `${abertas} pendência(s) em aberto` : 'sem pendências'}${c.resultado ? '' : ' · não calculado'}`;
+}
+
+// ---------- importar oportunidade + orçamento (JSON) ----------
+
+/** Carga de uma oportunidade com o orçamento já montado (fica em arquivo, nunca no código: o repositório é público). */
+function ImportarObra() {
+  const d = useDados();
+  const [plano, setPlano] = useState<PlanoObra | null>(null);
+  const [erro, setErro] = useState('');
+  async function ler(arq: File | undefined) {
+    setPlano(null); setErro('');
+    if (!arq) return;
+    const l = lerCargaObra(await arq.text());
+    if (l.erro || !l.carga) return setErro(l.erro ?? 'Arquivo inválido.');
+    setPlano(planejarCargaObra(l.carga, { empresas: d.empresas, contatos: d.contatos, orcamentos: d.orcamentos }, proximoNumero(d.orcamentos)));
+  }
+  async function confirmar() {
+    if (!plano) return;
+    if (plano.empresaNova) await salvarEmpresa(plano.empresa);
+    if (plano.contato) await salvarContato(plano.contato);
+    if (plano.orcamento) await salvarOrcamento(plano.orcamento);
+    const id = plano.orcamento?.id;
+    setPlano(null);
+    if (id) ir(`orcamento/${id}`);
+  }
+  return (
+    <>
+      <div class="fila" style="justify-content:flex-end">
+        <label class="botao peq" style="flex:0;white-space:nowrap;cursor:pointer;min-height:32px;padding:4px 10px">Importar oportunidade + orçamento (JSON)
+          <input type="file" accept=".json,application/json" style="display:none" onChange={(e) => { void ler(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} /></label>
+      </div>
+      {erro && <div class="erro">{erro}</div>}
+      {plano && (
+        <div class="cartao">
+          <b>Conferir antes de importar</b>
+          <ul style="margin:6px 0">
+            <li>Oportunidade no CRM: <b>{nomeEmpresa(plano.empresa)}</b> — {plano.empresaNova ? `será criada (etapa ${plano.empresa.etapa})` : 'já existe, será usada como está'}</li>
+            <li>Contato registrado: {plano.contato ? `${plano.contato.pessoa} (${plano.contato.canal})` : 'nenhum novo'}</li>
+            <li>Orçamento: {plano.orcamento ? `${plano.orcamento.numero} · ${plano.orcamento.status} · ${plano.orcamento.calc?.pontos.length ?? 0} linhas de pontos · ${plano.orcamento.calc?.pendencias.length ?? 0} pendências` : 'já existe; nada novo'}</li>
+          </ul>
+          {plano.avisos.map((a) => <div class="alerta" key={a}>{a}</div>)}
+          <div class="fila"><button class="primario" disabled={!plano.empresaNova && !plano.contato && !plano.orcamento} onClick={confirmar}>Importar</button><button style="flex:0" onClick={() => setPlano(null)}>Cancelar</button></div>
+        </div>
+      )}
+    </>
   );
 }

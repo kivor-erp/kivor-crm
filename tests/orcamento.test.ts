@@ -46,8 +46,8 @@ describe('orçamento', () => {
     expect([env.empresa?.etapa, env.empresa?.valorEstimado, env.orcamento.enviadoEm !== null]).toEqual([7, 5000, true]);
     const apr = mudarStatus(env.orcamento, 'Aprovado', env.empresa);
     expect([apr.empresa?.etapa, apr.empresa?.valorFechado, !!apr.empresa?.dataFechamento]).toEqual([9, 5000, true]);
-    expect(mudarStatus(o, 'Recusado', apr.empresa, 'preço').empresa).toBeUndefined(); // fechado não vira perdido
-    const rec = mudarStatus(o, 'Recusado', e, 'preço');
+    expect(mudarStatus(o, 'Perdido', apr.empresa, 'preço').empresa).toBeUndefined(); // fechado não vira perdido
+    const rec = mudarStatus(o, 'Perdido', e, 'preço');
     expect([rec.empresa?.etapa, rec.empresa?.motivoPerda]).toEqual([10, 'Orçamento PC-2026-CL001 rev. 00 recusado: preço']);
     expect(mudarStatus(o, 'Enviado', { ...e, etapa: 8 }).empresa?.etapa).toBe(8); // já em negociação: não volta para 7
   });

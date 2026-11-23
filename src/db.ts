@@ -3,6 +3,7 @@ import {
   CONFIG_PADRAO, agoraIso, novoId, type Configuracoes, type Contato, type Empresa, type Material, type Movimento,
   type Fornecedor, type Orcamento, type PedidoCompra, type PrecoCotado, type Recibo, type Registro, type Unidade,
 } from './lib/model';
+import type { CalculadoraSalva, Parametro } from './lib/calc/tipos';
 import type {
   AnuncioMk, CampanhaMk, ContaMk, ConversaoMk, GrupoMk, LeadMk, MetricaMk, PalavraMk, ProdutoMk, TermoMk,
 } from './lib/trafego/modelo';
@@ -18,7 +19,7 @@ export interface Meta { chave: string; valor: unknown }
 export const TABELAS = [
   'empresas', 'contatos', 'orcamentos', 'materiais', 'movimentos', 'unidades',
   'mkContas', 'mkCampanhas', 'mkGrupos', 'mkPalavras', 'mkAnuncios', 'mkProdutos', 'mkMetricas', 'mkTermos', 'mkLeads', 'mkConversoes',
-  'recibos', 'compras', 'fornecedores', 'precos',
+  'recibos', 'compras', 'fornecedores', 'precos', 'parametros', 'calculadoras',
 ] as const;
 export type NomeTabela = (typeof TABELAS)[number];
 export interface Dados {
@@ -42,6 +43,10 @@ export interface Dados {
   compras: PedidoCompra[];
   fornecedores: Fornecedor[];
   precos: PrecoCotado[];
+  /** Parâmetros dos orçamentos com calculadora (mão de obra, materiais, deslocamento, produtividade, fiscal, comerciais). */
+  parametros: Parametro[];
+  /** Calculadoras criadas pelo usuário (definição declarativa em JSON). */
+  calculadoras: CalculadoraSalva[];
 }
 
 export function dadosVazios(): Dados {
@@ -83,6 +88,8 @@ class CrmDb extends Dexie {
     this.version(6).stores({ fornecedores: 'id, cnpj, sujo' });
     // v7: mapa de preços (cotações de fornecedores, por empresa)
     this.version(7).stores({ precos: mk });
+    // v8: parâmetros dos orçamentos com calculadora (comuns às empresas; o fiscal leva unidadeId) e calculadoras do usuário
+    this.version(8).stores({ parametros: 'id, grupo, sujo', calculadoras: 'id, sujo' });
   }
 }
 

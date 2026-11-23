@@ -252,3 +252,8 @@ fieldset.sem-borda { border: 0; padding: 0; margin: 0; min-width: 0; }
   .doc { max-width: none; }
 }
 .abas + main .busca { top: 96px; }
+
+/* Orçamentos com calculadora */
+.selo.status-Aguardando-dados { background: #e3ecf8; color: #1d4f91; }
+.selo.status-Perdido { background: #fbe0de; color: var(--perigo); }
+.selo.exemplo { background: #fff3c4; color: #6b5300; font-size: .72rem; }

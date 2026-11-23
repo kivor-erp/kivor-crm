@@ -51,6 +51,9 @@ Cria `KIVOR-CRM.lnk` na pasta do projeto (e na Área de Trabalho com `-AreaDeTra
   escopo: preditiva, corretiva, plano preventivo elétrico, checklist NR-10, prazos de atendimento). **Imprimir / PDF** gera a
   proposta com cabeçalho e rodapé da SOF. Marcar como *Enviado*, *Aprovado* ou *Recusado* atualiza a etapa da empresa no CRM.
   Dados do emissor (nome, CNPJ, telefone, quem assina) ficam em `src/config.ts` (`EMISSOR`).
+  **Orçamentos com calculadora** (OR01–OR04): parâmetros editáveis com vigência, motor de fórmulas declarativo, calculadora de
+  CFTV, resumo separado por CNPJ (Loja/NF-e e SOF Montagens/NFS-e), pendências que bloqueiam o envio, versões e real × estimado.
+  Detalhes em [`docs/orcamentos-calculadoras.md`](docs/orcamentos-calculadoras.md).
 - **WMS**: estoque de materiais. O saldo é sempre a soma das movimentações (entrada, saída, inventário), então dois
   aparelhos nunca perdem lançamentos. **Importar** lê a planilha de controle de materiais (colunas Descrição/Fabricante/
   Modelo/Quant.): linhas do mesmo modelo são somadas e reimportar não duplica (vira ajuste de inventário).

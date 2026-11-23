@@ -2,6 +2,7 @@ import { liveQuery } from 'dexie';
 import { createContext, type ComponentChildren } from 'preact';
 import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { TABELAS, definirUnidadeAtiva, lerConfig, tabela, type Dados as Tabelas } from './db';
+import type { CalculadoraSalva, Parametro } from './lib/calc/tipos';
 import { saldos } from './lib/estoque';
 import {
   CONFIG_PADRAO, type Configuracoes, type Contato, type Empresa, type Material, type Movimento, type Fornecedor, type Orcamento, type PedidoCompra, type PrecoCotado, type Recibo, type Registro, type Unidade,
@@ -36,6 +37,11 @@ export interface Dados {
   fornecedores: Fornecedor[];
   /** Mapa de preços (cotações recebidas) da unidade escolhida. */
   precos: PrecoCotado[];
+  /** Parâmetros dos orçamentos com calculadora (comuns às empresas; o fiscal é por CNPJ). */
+  parametros: Parametro[];
+  calculadoras: CalculadoraSalva[];
+  /** Materiais das empresas com estoque (WMS), para puxar custo de compra nos orçamentos de qualquer empresa. */
+  materiaisWms: Material[];
   unidades: Unidade[];
   unidade: Unidade | null;
   /** Registros antigos ainda sem unidade (Ajustes permite atribuir). */
@@ -52,7 +58,7 @@ export interface Dados {
 const MK_VAZIO: DadosMk = { contas: [], campanhas: [], grupos: [], palavras: [], anuncios: [], produtos: [], metricas: [], termos: [], leads: [], conversoes: [] };
 const vazio: Dados = {
   pronto: false, empresas: [], contatos: [], resumos: new Map(), config: CONFIG_PADRAO, porId: new Map(),
-  orcamentos: [], materiais: [], movimentos: [], saldo: new Map(), recibos: [], compras: [], fornecedores: [], precos: [], unidades: [], unidade: null, semUnidade: { materiais: 0, orcamentos: 0 },
+  orcamentos: [], materiais: [], movimentos: [], saldo: new Map(), recibos: [], compras: [], fornecedores: [], precos: [], parametros: [], calculadoras: [], materiaisWms: [], unidades: [], unidade: null, semUnidade: { materiais: 0, orcamentos: 0 },
   mk: MK_VAZIO, campanhasDeOutras: [], setUnidade: () => {},
 };
 const Ctx = createContext<Dados>(vazio);
@@ -93,6 +99,9 @@ export function DadosProvider({ children }: { children: ComponentChildren }) {
     const materiais = daUnidade(t.materiais, uid, ha);
     const idsMat = new Set(materiais.map((m) => m.id));
     const movimentos = ha ? t.movimentos.filter((v) => idsMat.has(v.materialId)) : t.movimentos;
+    // orçamentos com calculadora reúnem itens de dois CNPJs (loja e serviços): aparecem em qualquer empresa; os valores seguem separados por CNPJ
+    const orcs = t.orcamentos.map((o) => ((o.status as string) === 'Recusado' ? { ...o, status: 'Perdido' as const } : o));
+    const comEstoque = new Set(unidades.filter((u) => u.temEstoque).map((u) => u.id));
     const mk = <T extends { unidadeId?: string | null }>(l: T[]) => daUnidade(l, uid, true);
     return {
       pronto: true,
@@ -101,7 +110,10 @@ export function DadosProvider({ children }: { children: ComponentChildren }) {
       config: bruto.config,
       resumos: resumir(t.contatos.filter((c) => ids.has(c.empresaId))),
       porId: new Map(t.empresas.map((e) => [e.id, e])),
-      orcamentos: daUnidade(t.orcamentos, uid, ha),
+      orcamentos: ha ? orcs.filter((o) => o.calc || (!!o.unidadeId && o.unidadeId === uid)) : orcs,
+      parametros: t.parametros,
+      calculadoras: t.calculadoras,
+      materiaisWms: ha ? t.materiais.filter((m) => !!m.unidadeId && comEstoque.has(m.unidadeId)) : t.materiais,
       materiais,
       movimentos,
       saldo: saldos(movimentos),

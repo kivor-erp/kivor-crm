@@ -285,7 +285,7 @@ describe('conversões offline (CSV do Google Ads)', () => {
     const com = nova.lead(U, { gclid: 'G1', orcamentoId: 'o1', dataHora: iso('2026-11-10T09:00') });
     const semGclid = nova.lead(U, { orcamentoId: 'o1' });
     const semVenda = nova.lead(U, { gclid: 'G2', orcamentoId: 'o2' });
-    const orcs = new Map([['o1', orc('o1', 500)], ['o2', orc('o2', 500, 'Recusado')]]);
+    const orcs = new Map([['o1', orc('o1', 500)], ['o2', orc('o2', 500, 'Perdido')]]);
     const c = candidatosConversao([com, semGclid, semVenda], [], orcs, new Map());
     expect(c.map((x) => [x.lead.id, x.valor, x.quando])).toEqual([[com.id, 500, '2026-11-12T15:00:00.000Z']]);
     expect(candidatosConversao([com], [novaConversao(com, 500, c[0].quando)], orcs, new Map())).toEqual([]);

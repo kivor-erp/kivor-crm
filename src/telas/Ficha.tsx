@@ -142,7 +142,7 @@ export function Ficha({ id }: { id: string }) {
           {orcs.map((o) => (
             <a key={o.id} class="linha-orc" href={`#/orcamento/${o.id}`}>
               <span>{o.numero} rev. {String(o.revisao).padStart(2, '0')} · {fmtData(o.data)}</span>
-              <span class={`selo status-${o.status}`}>{o.status}</span>
+              <span class={`selo status-${o.status.replace(/\s+/g, '-')}`}>{o.status}</span>
               <b>{fmtMoeda(totalOrcamento(o)) || 'R$ 0'}</b>
             </a>
           ))}

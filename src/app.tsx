@@ -12,6 +12,8 @@ import { Painel } from './telas/Painel';
 import { Estoque, ImportarMateriais, MaterialTela, Movimentacoes } from './telas/Estoque';
 import { Produtos } from './telas/Produtos';
 import { ImprimirOrcamento, OrcamentoTela, Orcamentos } from './telas/Orcamentos';
+import { Calculadoras, RealEstimado } from './telas/Calculadoras';
+import { Parametros } from './telas/Parametros';
 import { EntradaNfe, ImprimirRecibo, ReciboTela, Saidas } from './telas/Wms';
 import { CompraTela, Compras, Fornecedores, ImprimirCompra } from './telas/Compras';
 import { Precos } from './telas/Precos';
@@ -31,7 +33,10 @@ const MODULOS = [
     { rota: 'painel', rotulo: 'Painel' },
   ] },
   { id: 'orcamentos', nome: 'Orçamentos', ic: '🧾', itens: [
-    { rota: 'orcamentos', rotulo: 'Orçamentos' },
+    { rota: 'orcamentos', rotulo: 'OR01 Orçamentos' },
+    { rota: 'calculadoras', rotulo: 'OR02 Calculadoras' },
+    { rota: 'parametros', rotulo: 'OR03 Parâmetros' },
+    { rota: 'realestimado', rotulo: 'OR04 Real × estimado' },
   ] },
   { id: 'wms', nome: 'WMS', ic: '📦', itens: [
     { rota: 'produtos', rotulo: 'Produtos' },
@@ -126,6 +131,9 @@ function Tela({ tela, arg }: { tela: string; arg?: string }) {
         {item?.rota === 'empresas' && <Empresas rota={rota} />}
         {item?.rota === 'painel' && <Painel />}
         {item?.rota === 'orcamentos' && <Orcamentos rota={rota} />}
+        {item?.rota === 'calculadoras' && <Calculadoras />}
+        {item?.rota === 'parametros' && <Parametros />}
+        {item?.rota === 'realestimado' && <RealEstimado />}
         {item?.rota === 'produtos' && <Produtos />}
         {item?.rota === 'estoque' && <Estoque />}
         {item?.rota === 'entradas' && <EntradaNfe />}

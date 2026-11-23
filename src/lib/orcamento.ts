@@ -187,8 +187,8 @@ export function mudarStatus(o: Orcamento, status: StatusOrcamento, empresa: Empr
   const orcamento: Orcamento = {
     ...o, status,
     enviadoEm: status === 'Enviado' ? (o.enviadoEm ?? hoje) : o.enviadoEm,
-    decididoEm: status === 'Aprovado' || status === 'Recusado' ? hoje : null,
-    motivoRecusa: status === 'Recusado' ? motivo : '',
+    decididoEm: status === 'Aprovado' || status === 'Perdido' ? hoje : null,
+    motivoRecusa: status === 'Perdido' ? motivo : '',
   };
   if (!empresa) return { orcamento };
   const ref = `${o.numero} rev. ${String(o.revisao).padStart(2, '0')}`;
@@ -197,7 +197,7 @@ export function mudarStatus(o: Orcamento, status: StatusOrcamento, empresa: Empr
   if (status === 'Aprovado' && empresa.etapa !== ETAPA_FECHADO) {
     return { orcamento, empresa: { ...empresa, etapa: ETAPA_FECHADO, valorFechado: total, dataFechamento: hoje } };
   }
-  if (status === 'Recusado' && empresa.etapa < ETAPA_FECHADO) {
+  if (status === 'Perdido' && empresa.etapa < ETAPA_FECHADO) {
     return { orcamento, empresa: { ...empresa, etapa: ETAPA_PERDIDO, motivoPerda: `Orçamento ${ref} recusado${motivo ? `: ${motivo}` : ''}` } };
   }
   return { orcamento };

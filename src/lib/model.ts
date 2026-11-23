@@ -1,3 +1,5 @@
+import type { CalcOrcamento, Faturamento } from './calc/tipos';
+
 // Modelo de dados do CRM. Todas as datas-hora são ISO 8601 em UTC;
 // datas sem hora (follow-up, fechamento) são 'AAAA-MM-DD' no fuso de São Paulo.
 
@@ -139,7 +141,7 @@ export const CONFIG_PADRAO: Configuracoes = { limiteVerde: 7, limiteAmarelo: 14 
 
 // ---------- Orçamentos ----------
 
-export const STATUS_ORCAMENTO = ['Rascunho', 'Enviado', 'Aprovado', 'Recusado'] as const;
+export const STATUS_ORCAMENTO = ['Rascunho', 'Aguardando dados', 'Enviado', 'Aprovado', 'Perdido'] as const;
 export type StatusOrcamento = (typeof STATUS_ORCAMENTO)[number];
 
 export interface ItemOrcamento {
@@ -147,6 +149,8 @@ export interface ItemOrcamento {
   unidade: string; // un, m, vb, mês, h…
   quantidade: number;
   valorUnitario: number;
+  /** Orçamentos com calculadora: quem fatura o item (loja/NF-e ou SOF Montagens/NFS-e). */
+  faturadoPor?: Faturamento;
 }
 
 /** Bloco de texto da proposta. Linhas que começam com "- " viram tópicos; "## " vira subtítulo. */
@@ -175,6 +179,8 @@ export interface Orcamento extends Registro {
   enviadoEm: string | null;
   decididoEm: string | null;
   motivoRecusa: string;
+  /** Orçamento com calculadora (pontos, pendências, resultado por CNPJ). Ausente nas propostas simples. */
+  calc?: CalcOrcamento;
 }
 
 // ---------- Unidades (empresas do grupo, uma por CNPJ) ----------
