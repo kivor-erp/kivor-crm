@@ -25,7 +25,7 @@ class RemotoFalso implements Remoto {
   }
   gravarDireto(empresas: Empresa[]) { // outro aparelho gravou
     this.versao++;
-    this.arquivo = { ...dadosVazios(), versao: 6, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [] };
+    this.arquivo = { ...dadosVazios(), versao: 7, salvoEm: t(0), empresas, contatos: this.arquivo?.contatos ?? [] };
   }
 }
 
@@ -123,13 +123,13 @@ describe('sincronização com o OneDrive', () => {
     r.arquivo = { versao: 1, salvoEm: t(0), empresas: [emp('1', 'Alfa', t(1))], contatos: [] } as unknown as ArquivoCrm;
     r.versao = 1;
     await sincronizarCom(r);
-    expect(r.arquivo!.versao).toBe(6);
+    expect(r.arquivo!.versao).toBe(7);
     expect(r.arquivo!.empresas.map((e) => e.razaoSocial)).toEqual(['Alfa']);
     expect(r.arquivo!.materiais).toEqual([]);
   });
 
   it('formato desconhecido nunca é sobrescrito', () => {
-    expect(() => validarArquivo({ versao: 7, empresas: [], contatos: [] })).toThrow(/formato desconhecido/);
+    expect(() => validarArquivo({ versao: 8, empresas: [], contatos: [] })).toThrow(/formato desconhecido/);
     expect(validarArquivo({ versao: 1, empresas: [], contatos: [] }).movimentos).toEqual([]);
   });
 

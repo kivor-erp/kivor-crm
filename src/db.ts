@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import {
   CONFIG_PADRAO, agoraIso, novoId, type Configuracoes, type Contato, type Empresa, type Material, type Movimento,
-  type Fornecedor, type Orcamento, type PedidoCompra, type Recibo, type Registro, type Unidade,
+  type Fornecedor, type Orcamento, type PedidoCompra, type PrecoCotado, type Recibo, type Registro, type Unidade,
 } from './lib/model';
 import type {
   AnuncioMk, CampanhaMk, ContaMk, ConversaoMk, GrupoMk, LeadMk, MetricaMk, PalavraMk, ProdutoMk, TermoMk,
@@ -18,7 +18,7 @@ export interface Meta { chave: string; valor: unknown }
 export const TABELAS = [
   'empresas', 'contatos', 'orcamentos', 'materiais', 'movimentos', 'unidades',
   'mkContas', 'mkCampanhas', 'mkGrupos', 'mkPalavras', 'mkAnuncios', 'mkProdutos', 'mkMetricas', 'mkTermos', 'mkLeads', 'mkConversoes',
-  'recibos', 'compras', 'fornecedores',
+  'recibos', 'compras', 'fornecedores', 'precos',
 ] as const;
 export type NomeTabela = (typeof TABELAS)[number];
 export interface Dados {
@@ -41,6 +41,7 @@ export interface Dados {
   recibos: Recibo[];
   compras: PedidoCompra[];
   fornecedores: Fornecedor[];
+  precos: PrecoCotado[];
 }
 
 export function dadosVazios(): Dados {
@@ -80,6 +81,8 @@ class CrmDb extends Dexie {
     this.version(5).stores({ compras: mk });
     // v6: fornecedores (comuns a todas as empresas)
     this.version(6).stores({ fornecedores: 'id, cnpj, sujo' });
+    // v7: mapa de preços (cotações de fornecedores, por empresa)
+    this.version(7).stores({ precos: mk });
   }
 }
 
@@ -101,7 +104,7 @@ function marcar<T extends { atualizadoEm: string }>(r: T, agora = agoraIso()): L
 // Unidade (CNPJ) escolhida no seletor. Material e orçamento novos nascem nela.
 let unidadeAtiva: string | null = null;
 export function definirUnidadeAtiva(id: string | null): void { unidadeAtiva = id; }
-const COM_UNIDADE: NomeTabela[] = ['materiais', 'orcamentos', 'recibos', 'compras'];
+const COM_UNIDADE: NomeTabela[] = ['materiais', 'orcamentos', 'recibos', 'compras', 'precos'];
 function carimbar<T>(n: NomeTabela, r: T): T {
   const x = r as T & { unidadeId?: string | null };
   return COM_UNIDADE.includes(n) && !x.unidadeId && unidadeAtiva ? { ...x, unidadeId: unidadeAtiva } : r;

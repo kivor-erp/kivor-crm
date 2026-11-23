@@ -15,6 +15,7 @@ import { CATEGORIAS, nomeCategoria } from '../lib/catalogoCompras';
 import { estaNoES } from '../lib/buscaFornecedor';
 import { lerCarga, planejarCarga, type PlanoCarga } from '../lib/cargaFornecedores';
 import { emailCotacao } from '../lib/cotacao';
+import { dicaDeCompra } from '../lib/precos';
 import { ir, useDados, voltar } from '../store';
 
 // Compras: pedidos (ordens) de compra a fornecedores, ligados ao orçamento do cliente que os originou.
@@ -102,6 +103,13 @@ function EditorCompra({ inicial }: { inicial: PedidoCompra }) {
   );
   const materiais = useMemo(() => [...d.materiais].sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR')), [d.materiais]);
   const orc = p.orcamentoId ? d.orcamentos.find((x) => x.id === p.orcamentoId) : undefined;
+  // cada item é conferido contra o mapa pelo modelo do estoque (se ligado) ou pelo código digitado
+  const dicas = p.itens.flatMap((i, k) => {
+    if (!i.descricao.trim() && !i.codigo.trim()) return [];
+    const modelo = (i.materialId ? d.materiais.find((m) => m.id === i.materialId)?.modelo : '') || i.codigo;
+    const dica = dicaDeCompra(d.precos, modelo, p.fornecedor, i.valorUnitario);
+    return dica.nivel === 'sem-cotacao' ? [] : [{ k, i, dica }];
+  });
 
   async function gravar(status?: StatusCompra) {
     const novo = { ...p, status: status ?? p.status, itens: p.itens.filter((i, k) => i.descricao.trim() || k === 0) };
@@ -168,6 +176,19 @@ function EditorCompra({ inicial }: { inicial: PedidoCompra }) {
           <button style="margin-top:6px" onClick={() => setP({ ...p, itens: [...p.itens, novoItemCompra()] })}>+ Item</button>
         </div>
 
+        {dicas.length > 0 && (
+          <div class="cartao">
+            <b>Conferência com o Mapa de preços</b> <a href="#/precos" class="peq">(abrir)</a>
+            <ul style="margin:6px 0 0;padding-left:18px">{dicas.map(({ k, i, dica }) => (
+              <li key={k} style={dica.nivel === 'acima' || dica.nivel === 'vencida' ? 'color:#8a6d00' : ''}>
+                <b>{i.codigo || i.descricao.slice(0, 40)}</b>: {dica.texto}
+                {dica.referencia && dica.nivel !== 'vencida' && Math.abs(i.valorUnitario - dica.referencia.precoUnitario) > 0.005 && (
+                  <> <button class="peq" onClick={() => mudarItem(k, { valorUnitario: dica.referencia!.precoUnitario })}>usar {fmtR(dica.referencia.precoUnitario)}</button></>
+                )}
+              </li>
+            ))}</ul>
+          </div>
+        )}
         {erros.length > 0 && <div class="erro"><ul style="margin:0;padding-left:18px">{erros.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         {msg && <div class="sucesso">{msg}</div>}
         <div class="fila" style="margin-top:10px">

@@ -291,6 +291,51 @@ export interface PedidoCompra extends Registro {
   observacao: string;
 }
 
+// ---------- Mapa de preços (cotações recebidas de fornecedores) ----------
+
+export const STATUS_PRECO = ['Cotado', 'Comprado', 'Descartado'] as const;
+export type StatusPreco = (typeof STATUS_PRECO)[number];
+export const TIPOS_FRETE = ['', 'FOB', 'CIF'] as const;
+export type TipoFrete = (typeof TIPOS_FRETE)[number];
+
+/**
+ * Um preço cotado: um item, de um fornecedor, numa proposta. O mapa compara estes registros por modelo.
+ * `precoUnitario` é o líquido da proposta, SEM IPI e SEM ICMS-ST (o ICMS/PIS/COFINS já vêm dentro dele).
+ */
+export interface PrecoCotado extends Registro {
+  unidadeId?: string | null;
+  /** Part number do fabricante: é a chave para comparar fornecedores (ex.: CFW500D24P0T4DB20G2). */
+  modelo: string;
+  /** Código do item no fornecedor/fabricante (ex.: 15576919). */
+  codigoFornecedor: string;
+  descricao: string;
+  fabricante: string;
+  ncm: string;
+  /** Produto do estoque/cadastro, quando já existe (permite comparar com preço de venda e último custo da NF-e). */
+  materialId: string | null;
+  fornecedor: string;
+  /** Quem fatura, se for diferente de quem cotou (ex.: representante cota, fábrica fatura). */
+  faturadoPor: string;
+  oferta: string; // nº da proposta, com revisão (ex.: 240356924 rev. 0)
+  data: string; // AAAA-MM-DD em que a cotação foi feita
+  validade: string | null; // AAAA-MM-DD
+  /** Quantidade para a qual o preço vale. */
+  quantidade: number;
+  unidade: string;
+  precoUnitario: number;
+  icmsPct: number | null; // já incluso no preço
+  ipiPct: number; // NÃO incluso no preço
+  /** ICMS-ST por unidade, R$ (não incluso no preço). */
+  stUnitario: number;
+  freteTipo: TipoFrete;
+  /** Frete por unidade, R$ (0 = não informado ou já incluso/CIF). */
+  freteUnitario: number;
+  pagamento: string; // "Antecipado", "28 dias", "30/60 dias"…
+  prazoDias: number | null; // prazo de entrega informado
+  status: StatusPreco;
+  observacao: string;
+}
+
 // ---------- Saídas (recibo) ----------
 
 export interface ItemRecibo {

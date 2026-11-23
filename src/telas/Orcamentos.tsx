@@ -8,6 +8,7 @@ import { nomeEmpresa, STATUS_ORCAMENTO, type ItemOrcamento, type Orcamento, type
 import { BLOCOS, blocosTexto, copiar, mudarStatus, novoOrcamento, porExtenso, proximoNumero, totalItem, totalOrcamento } from '../lib/orcamento';
 import { fmtMoeda, lerMoeda } from '../lib/regras';
 import { normalizar } from '../lib/texto';
+import { conferirItemVenda, lerParametrosMapa, prepararConferencia } from '../lib/precos';
 import { ir, useDados, voltar, type Rota } from '../store';
 
 const fmtValor = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -122,6 +123,7 @@ function Editor({ inicial }: { inicial: Orcamento }) {
   const empresa = o.empresaId ? d.porId.get(o.empresaId) : undefined;
   const total = totalOrcamento(o);
   const sugestoesMat = d.materiais.map((m) => [m.descricao, m.fabricante, m.modelo].filter(Boolean).join(' – '));
+  const ctxVenda = useMemo(() => { const p = lerParametrosMapa(); return prepararConferencia(d.precos, d.materiais, p.venda, undefined, { creditaIpi: p.creditaIpi }); }, [d.precos, d.materiais]);
 
   function inserirBloco(titulo: string) {
     const b = BLOCOS.find((x) => x.titulo === titulo);
@@ -244,6 +246,7 @@ function Editor({ inicial }: { inicial: Orcamento }) {
                   <div><label>Valor unit.</label><CampoNumero moeda valor={it.valorUnitario} desabilitado={travado} aoMudar={(n) => mudarItem(i, { valorUnitario: n })} /></div>
                   <div><label>Total</label><div class="total-item">{fmtValor(totalItem(it))}</div></div>
                 </div>
+                <ConferenciaVenda r={conferirItemVenda(ctxVenda, it.descricao, it.valorUnitario)} />
                 {o.itens.length > 1 && <button class="perigo" style="min-height:32px;padding:4px 10px" onClick={() => mudar({ itens: o.itens.filter((_, k) => k !== i) })}>Remover item</button>}
               </div>
             ))}
@@ -369,6 +372,22 @@ export function ImprimirOrcamento({ id }: { id: string }) {
           </div>
         </td></tr></tbody>
       </table>
+    </div>
+  );
+}
+
+/** Linha de controle sob o item: custo conhecido do produto, margem do preço digitado e preço mínimo/sugerido. Só aparece na tela de edição. */
+function ConferenciaVenda({ r }: { r: ReturnType<typeof conferirItemVenda> }) {
+  if (!r) return null;
+  const pct = (v: number | null) => (v === null ? '' : `${(v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`);
+  const cor = r.nivel === 'prejuizo' ? 'var(--perigo)' : r.nivel === 'abaixo-da-meta' || r.origem === 'vencida' ? '#8a6d00' : 'var(--suave)';
+  const msg = r.nivel === 'prejuizo' ? 'ABAIXO DO CUSTO' : r.nivel === 'abaixo-da-meta' ? 'abaixo da margem desejada' : r.nivel === 'sem-preco' ? 'informe o valor unitário' : 'margem ok';
+  return (
+    <div class="peq" style={`color:${cor};margin-top:4px`}>
+      <b>{msg}</b> · custo {fmtValor(r.custo)} ({r.fonte}){r.origem === 'vencida' ? ', peça preço novo' : ''}
+      {r.margem !== null && <> · margem {pct(r.margem)}</>}
+      {r.piso !== null && <> · mínimo {fmtValor(r.piso)}</>}
+      {r.sugerido !== null && <> · sugerido {fmtValor(r.sugerido)}</>}
     </div>
   );
 }

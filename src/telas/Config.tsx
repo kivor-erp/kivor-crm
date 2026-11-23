@@ -7,7 +7,7 @@ const ROTULO_TABELA: Record<NomeTabela, string> = {
   empresas: 'Empresas', contatos: 'Contatos', orcamentos: 'Orçamentos', materiais: 'Materiais', movimentos: 'Movimentações',
   unidades: 'Unidades (CNPJ)', mkContas: 'MK · Contas', mkCampanhas: 'MK · Campanhas', mkGrupos: 'MK · Grupos',
   mkPalavras: 'MK · Palavras-chave', mkAnuncios: 'MK · Anúncios', mkProdutos: 'MK · Produtos', mkMetricas: 'MK · Métricas',
-  mkTermos: 'MK · Termos', mkLeads: 'MK · Leads', mkConversoes: 'MK · Conversões', recibos: 'Recibos de saída', compras: 'Pedidos de compra', fornecedores: 'Fornecedores',
+  mkTermos: 'MK · Termos', mkLeads: 'MK · Leads', mkConversoes: 'MK · Conversões', recibos: 'Recibos de saída', compras: 'Pedidos de compra', fornecedores: 'Fornecedores', precos: 'Mapa de preços',
 };
 import { fmtData } from '../lib/datas';
 import { nomeEmpresa } from '../lib/model';
