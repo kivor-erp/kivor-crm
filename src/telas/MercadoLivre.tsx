@@ -32,12 +32,33 @@ export function TelaMl({ rota }: { rota: string }) {
   return <Pedidos userId={e.st.userId!} />;
 }
 
-function Offline({ aoTentar }: { aoTentar: () => void }) {
+function Offline({ aoTentar }: { aoTentar: () => Promise<void> | void }) {
+  const [ligando, setLigando] = useState(false);
+  const [falhou, setFalhou] = useState(false);
+
+  /** Pede ao Windows (atalho kivor-ml:, criado por instalar-ajudante-ml.cmd) para ligar o ajudante escondido e espera ele responder. */
+  const ligar = async () => {
+    setLigando(true); setFalhou(false);
+    location.href = 'kivor-ml://iniciar';
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      try { await statusAjudante(); await aoTentar(); return; } catch { /* ainda subindo */ }
+    }
+    setLigando(false); setFalhou(true);
+  };
+
   return (
     <div class="cartao vazio">
-      <p><b>O ajudante do Mercado Livre não está aberto.</b></p>
-      <p class="peq">Ele roda neste computador e guarda a chave do seu app com segurança. Abra o arquivo <code>iniciar-ajudante-ml.cmd</code> (pasta <code>ajudante-ml</code>) e deixe a janela aberta.</p>
-      <button class="botao" onClick={aoTentar}>Tentar de novo</button>
+      <p><b>O ajudante do Mercado Livre está desligado.</b></p>
+      <p class="peq">Ele roda neste computador, em segundo plano, e guarda a chave do seu app com segurança.</p>
+      <button class="primario" disabled={ligando} onClick={() => void ligar()}>{ligando ? 'Ligando…' : 'Ligar o ajudante'}</button>{' '}
+      <button class="botao" disabled={ligando} onClick={() => void aoTentar()}>Tentar de novo</button>
+      {falhou && (
+        <p class="peq">
+          Não ligou. Se é a primeira vez neste computador, dê dois cliques em <code>instalar-ajudante-ml.cmd</code> (pasta <code>ajudante-ml</code>) uma única vez.
+          Depois disso o botão funciona e o ajudante também liga sozinho com o Windows. Se o navegador perguntar se pode abrir o atalho, aceite.
+        </p>
+      )}
     </div>
   );
 }
